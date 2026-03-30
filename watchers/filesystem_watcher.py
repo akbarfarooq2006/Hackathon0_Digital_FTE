@@ -15,6 +15,9 @@ Usage:
 
 import sys
 import shutil
+import logging
+import time
+from datetime import datetime
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent
@@ -80,6 +83,7 @@ class DropFolderHandler(FileSystemEventHandler, BaseWatcher):
     def process_file(self, source: Path):
         """
         Process a new file: copy to Needs_Action and create metadata.
+        Also creates a .md version in Inbox for Obsidian visibility.
         
         Args:
             source: Path to the source file
@@ -90,26 +94,93 @@ class DropFolderHandler(FileSystemEventHandler, BaseWatcher):
         dest_name = f'FILE_{timestamp}_{safe_name}'
         dest = self.needs_action / dest_name
         
-        # Copy the file
+        # Copy the file to Needs_Action
         shutil.copy2(source, dest)
         self.logger.info(f'Copied file to: {dest.name}')
         
-        # Create metadata file
-        self.create_metadata(source, dest)
+        # Read text content if possible
+        text_content = self.read_text_content(source)
+        
+        # Create .md file in Inbox so it's visible in Obsidian
+        self.create_inbox_md(source, timestamp, text_content)
+        
+        # Create metadata file in Needs_Action
+        self.create_metadata(source, dest, text_content)
+        
+        # Delete the original non-.md file — vault mein sirf .md rahein
+        if source.suffix.lower() != '.md':
+            source.unlink()
+            self.logger.info(f'Deleted original file: {source.name} (replaced by .md)')
     
-    def create_metadata(self, source: Path, dest: Path):
+    def read_text_content(self, source: Path) -> str:
+        """Try to read text content from a file."""
+        text_extensions = {'.txt', '.md', '.csv', '.json', '.xml', '.html', '.log', '.py', '.js'}
+        if source.suffix.lower() in text_extensions:
+            try:
+                return source.read_text(encoding='utf-8', errors='replace')
+            except Exception:
+                pass
+        return ''
+
+    def create_inbox_md(self, source: Path, timestamp: str, text_content: str):
         """
-        Create a Markdown metadata file for the dropped file.
+        Create a .md file in Inbox so the dropped file is visible in Obsidian UI.
+        
+        Args:
+            source: Original dropped file
+            timestamp: Timestamp string for unique naming
+            text_content: Text content read from the file (if any)
+        """
+        md_name = f'{source.stem}_{timestamp}.md'
+        md_path = self.drop_folder / md_name
+        file_size = source.stat().st_size
+        file_type = source.suffix.lower().replace('.', '') or 'unknown'
+
+        content_section = ''
+        if text_content:
+            content_section = f'\n## 📄 File Content\n\n```\n{text_content}\n```\n'
+
+        content = f'''---
+type: inbox_item
+original_file: {source.name}
+received: {self.get_timestamp()}
+status: pending
+---
+
+# 📥 {source.stem}
+
+## File Info
+- **Original:** `{source.name}`
+- **Type:** {file_type.upper()}
+- **Size:** {self.format_size(file_size)}
+- **Received:** {self.get_timestamp()}
+{content_section}
+## ✅ Actions
+- [ ] Review content
+- [ ] Process and act
+- [ ] Move to /Done when complete
+'''
+        md_path.write_text(content, encoding='utf-8')
+        self.logger.info(f'Created Obsidian-visible .md in Inbox: {md_name}')
+
+    def create_metadata(self, source: Path, dest: Path, text_content: str = ''):
+        """
+        Create a Markdown metadata file for the dropped file in Needs_Action.
         
         Args:
             source: Path to the original file
             dest: Path to the copied file
+            text_content: Text content of the file (if readable)
         """
         meta_path = dest.with_suffix('.md')
         
         # Get file info
         file_size = source.stat().st_size
         file_type = source.suffix.lower().replace('.', '')
+
+        content_section = ''
+        if text_content:
+            content_section = f'\n## 📄 File Content\n\n```\n{text_content}\n```\n'
         
         content = f'''---
 type: file_drop
@@ -128,7 +199,7 @@ status: pending
 - **File Type:** {file_type.upper()}
 - **Size:** {self.format_size(file_size)}
 - **Received:** {self.get_timestamp()}
-
+{content_section}
 ## Suggested Actions
 - [ ] Review file contents
 - [ ] Process and extract relevant information
@@ -139,7 +210,7 @@ status: pending
 <!-- Add your notes here -->
 
 '''
-        meta_path.write_text(content)
+        meta_path.write_text(content, encoding='utf-8')
         self.logger.info(f'Created metadata: {meta_path.name}')
     
     def format_size(self, size_bytes: int) -> str:
@@ -187,8 +258,6 @@ status: pending
         return None
 
 
-# Import datetime for the class
-from datetime import datetime
 
 
 def main():
