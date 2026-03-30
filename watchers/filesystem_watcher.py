@@ -52,29 +52,25 @@ class DropFolderHandler(FileSystemEventHandler, BaseWatcher):
     def on_created(self, event):
         """
         Handle file creation events.
-        
+
         Args:
             event: FileSystemEvent object
         """
         if event.is_directory:
             return
-        
+
         source_path = Path(event.src_path)
-        
+
         # Only process files in our drop folder
         if source_path.parent != self.drop_folder:
             return
-        
-        # Skip .md files (they're already action files)
-        if source_path.suffix == '.md':
-            return
-        
+
         # Skip temporary files (e.g., ~$ files from Office)
         if source_path.name.startswith('~$'):
             return
-        
+
         self.logger.info(f'New file detected: {source_path.name}')
-        
+
         try:
             self.process_file(source_path)
         except Exception as e:
@@ -84,7 +80,8 @@ class DropFolderHandler(FileSystemEventHandler, BaseWatcher):
         """
         Process a new file: copy to Needs_Action and create metadata.
         Also creates a .md version in Inbox for Obsidian visibility.
-        
+        For .md files, the original is deleted after processing (same as other files).
+
         Args:
             source: Path to the source file
         """
@@ -93,24 +90,24 @@ class DropFolderHandler(FileSystemEventHandler, BaseWatcher):
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         dest_name = f'FILE_{timestamp}_{safe_name}'
         dest = self.needs_action / dest_name
-        
+
         # Copy the file to Needs_Action
         shutil.copy2(source, dest)
         self.logger.info(f'Copied file to: {dest.name}')
-        
+
         # Read text content if possible
         text_content = self.read_text_content(source)
-        
+
         # Create .md file in Inbox so it's visible in Obsidian
+        # For .md files, we still create a renamed version for visibility
         self.create_inbox_md(source, timestamp, text_content)
-        
+
         # Create metadata file in Needs_Action
         self.create_metadata(source, dest, text_content)
-        
-        # Delete the original non-.md file — vault mein sirf .md rahein
-        if source.suffix.lower() != '.md':
-            source.unlink()
-            self.logger.info(f'Deleted original file: {source.name} (replaced by .md)')
+
+        # Delete the original file from Inbox - vault mein sirf processed .md rahein
+        source.unlink()
+        self.logger.info(f'Deleted original file: {source.name} (replaced by .md)')
     
     def read_text_content(self, source: Path) -> str:
         """Try to read text content from a file."""
