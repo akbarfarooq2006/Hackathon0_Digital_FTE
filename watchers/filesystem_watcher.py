@@ -28,30 +28,41 @@ from base_watcher import BaseWatcher
 class DropFolderHandler(FileSystemEventHandler, BaseWatcher):
     """
     Watches a drop folder and creates action files for new files.
-    
+
     Combines FileSystemEventHandler (for watchdog) with BaseWatcher
     to create a complete file monitoring solution.
     """
-    
+
+    # Prefix for watcher-generated files (to identify and skip them)
+    GENERATED_FILE_PREFIX = 'FILE_'
+
     def __init__(self, vault_path: str):
         """
         Initialize the File System Watcher.
-        
+
         Args:
             vault_path: Path to the Obsidian vault root
         """
         # Initialize BaseWatcher with 30-second check interval
         BaseWatcher.__init__(self, vault_path, check_interval=30)
-        
+
         # Setup drop folder (Inbox)
         self.drop_folder = self.vault_path / 'Inbox'
         self.drop_folder.mkdir(parents=True, exist_ok=True)
-        
+
+        # Track files currently being processed (to avoid infinite loops)
+        self.processing_files = set()
+
         self.logger.info(f'Drop folder: {self.drop_folder}')
+        self.logger.info(f'Watching ONLY: {self.drop_folder}')
+        self.logger.info(f'Generated files prefix: {self.GENERATED_FILE_PREFIX}')
     
     def on_created(self, event):
         """
         Handle file creation events.
+
+        CRITICAL: Only process user-dropped files in /Inbox.
+        Ignore any files created by the watcher itself to prevent infinite loops.
 
         Args:
             event: FileSystemEvent object
@@ -61,12 +72,27 @@ class DropFolderHandler(FileSystemEventHandler, BaseWatcher):
 
         source_path = Path(event.src_path)
 
-        # Only process files in our drop folder
+        # STRICT CHECK: Only process files directly in /Inbox (not subdirectories)
+        # This prevents processing files created in /Needs_Action or anywhere else
         if source_path.parent != self.drop_folder:
+            self.logger.debug(f'Ignoring file outside Inbox: {source_path}')
             return
 
-        # Skip temporary files (e.g., ~$ files from Office)
+        # SAFETY 1: Skip watcher-generated files (files starting with FILE_)
+        # These are created by the watcher in Needs_Action
+        if source_path.name.startswith(self.GENERATED_FILE_PREFIX):
+            self.logger.debug(f'Ignoring watcher-generated file: {source_path.name}')
+            return
+
+        # SAFETY 2: Skip temporary files (e.g., ~$ files from Office)
         if source_path.name.startswith('~$'):
+            self.logger.debug(f'Ignoring temporary file: {source_path.name}')
+            return
+
+        # SAFETY 3: Skip files currently being processed (prevents race conditions)
+        file_key = str(source_path.resolve())
+        if file_key in self.processing_files:
+            self.logger.debug(f'File already being processed: {source_path.name}')
             return
 
         self.logger.info(f'New file detected: {source_path.name}')
@@ -79,35 +105,41 @@ class DropFolderHandler(FileSystemEventHandler, BaseWatcher):
     def process_file(self, source: Path):
         """
         Process a new file: copy to Needs_Action and create metadata.
-        Also creates a .md version in Inbox for Obsidian visibility.
-        For .md files, the original is deleted after processing (same as other files).
+        
+        IMPORTANT: Does NOT create files in Inbox to avoid infinite loops.
+        All output goes to Needs_Action folder only.
 
         Args:
             source: Path to the source file
         """
-        # Create unique filename
-        safe_name = self.sanitize_filename(source.name)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        dest_name = f'FILE_{timestamp}_{safe_name}'
-        dest = self.needs_action / dest_name
+        # Add to processing set to prevent re-triggering
+        file_key = str(source.resolve())
+        self.processing_files.add(file_key)
 
-        # Copy the file to Needs_Action
-        shutil.copy2(source, dest)
-        self.logger.info(f'Copied file to: {dest.name}')
+        try:
+            # Create unique filename
+            safe_name = self.sanitize_filename(source.name)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            dest_name = f'FILE_{timestamp}_{safe_name}'
+            dest = self.needs_action / dest_name
 
-        # Read text content if possible
-        text_content = self.read_text_content(source)
+            # Copy the file to Needs_Action
+            shutil.copy2(source, dest)
+            self.logger.info(f'Copied file to: {dest.name}')
 
-        # Create .md file in Inbox so it's visible in Obsidian
-        # For .md files, we still create a renamed version for visibility
-        self.create_inbox_md(source, timestamp, text_content)
+            # Read text content if possible
+            text_content = self.read_text_content(source)
 
-        # Create metadata file in Needs_Action
-        self.create_metadata(source, dest, text_content)
+            # Create metadata file in Needs_Action (NOT in Inbox)
+            self.create_metadata(source, dest, text_content)
 
-        # Delete the original file from Inbox - vault mein sirf processed .md rahein
-        source.unlink()
-        self.logger.info(f'Deleted original file: {source.name} (replaced by .md)')
+            # Delete the original file from Inbox
+            source.unlink()
+            self.logger.info(f'Deleted original file: {source.name}')
+        finally:
+            # Remove from processing set when done
+            self.processing_files.discard(file_key)
+            self.logger.debug(f'Removed from processing set: {source.name}')
     
     def read_text_content(self, source: Path) -> str:
         """Try to read text content from a file."""
@@ -118,47 +150,6 @@ class DropFolderHandler(FileSystemEventHandler, BaseWatcher):
             except Exception:
                 pass
         return ''
-
-    def create_inbox_md(self, source: Path, timestamp: str, text_content: str):
-        """
-        Create a .md file in Inbox so the dropped file is visible in Obsidian UI.
-        
-        Args:
-            source: Original dropped file
-            timestamp: Timestamp string for unique naming
-            text_content: Text content read from the file (if any)
-        """
-        md_name = f'{source.stem}_{timestamp}.md'
-        md_path = self.drop_folder / md_name
-        file_size = source.stat().st_size
-        file_type = source.suffix.lower().replace('.', '') or 'unknown'
-
-        content_section = ''
-        if text_content:
-            content_section = f'\n## 📄 File Content\n\n```\n{text_content}\n```\n'
-
-        content = f'''---
-type: inbox_item
-original_file: {source.name}
-received: {self.get_timestamp()}
-status: pending
----
-
-# 📥 {source.stem}
-
-## File Info
-- **Original:** `{source.name}`
-- **Type:** {file_type.upper()}
-- **Size:** {self.format_size(file_size)}
-- **Received:** {self.get_timestamp()}
-{content_section}
-## ✅ Actions
-- [ ] Review content
-- [ ] Process and act
-- [ ] Move to /Done when complete
-'''
-        md_path.write_text(content, encoding='utf-8')
-        self.logger.info(f'Created Obsidian-visible .md in Inbox: {md_name}')
 
     def create_metadata(self, source: Path, dest: Path, text_content: str = ''):
         """
