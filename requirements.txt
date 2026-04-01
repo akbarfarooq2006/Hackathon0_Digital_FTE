@@ -33,4 +33,4 @@ schedule>=1.2.0
 # ===========================================
 # Optional: Email Sending (Silver Tier)
 # ===========================================
-# python-dotenv>=1.0.0  # For .env management
+python-dotenv>=1.0.0  # For .env management

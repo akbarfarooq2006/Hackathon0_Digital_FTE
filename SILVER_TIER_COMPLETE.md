@@ -27,13 +27,14 @@ verified: false
 1. **vault-processor** - Core vault processing
 2. **browsing-with-playwright** - Browser automation (22 tools)
 
-### Silver Tier Skills (6)
+### Silver Tier Skills (7)
 3. **gmail-watcher** - Gmail monitoring
 4. **whatsapp-watcher** - WhatsApp Web monitoring
 5. **linkedin-poster** - LinkedIn content creation & posting
 6. **plan-creator** - Multi-step task planning
 7. **approval-workflow** - Human-in-the-loop approvals
 8. **scheduler** - Cron/Task Scheduler integration
+9. **gmail-sender** - Send and reply to emails
 
 ---
 

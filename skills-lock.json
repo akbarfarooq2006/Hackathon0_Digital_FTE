@@ -40,6 +40,11 @@
       "source": "local",
       "sourceType": "local",
       "computedHash": "silver-tier"
+    },
+    "gmail-sender": {
+      "source": "local",
+      "sourceType": "local",
+      "computedHash": "silver-tier"
     }
   }
 }
