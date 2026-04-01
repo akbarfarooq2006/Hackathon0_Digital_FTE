@@ -1,13 +1,36 @@
-# AI Employee - Bronze Tier Dependencies
+# AI Employee - Silver Tier Dependencies
 # Install with: pip install -r requirements.txt
+
+# ===========================================
+# Core Dependencies (Bronze Tier)
+# ===========================================
 
 # File system watching (for Watcher scripts)
 watchdog>=4.0.0
 
-# Google API (for Gmail Watcher - optional, Silver tier)
-# google-api-python-client>=2.0.0
-# google-auth-httplib2>=0.2.0
-# google-auth-oauthlib>=1.0.0
+# ===========================================
+# Gmail Watcher (Silver Tier)
+# ===========================================
+google-api-python-client>=2.0.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.0.0
 
-# Playwright (for WhatsApp Web Watcher - optional, Silver tier)
-# playwright>=1.40.0
+# ===========================================
+# WhatsApp Watcher (Silver Tier)
+# ===========================================
+playwright>=1.40.0
+
+# ===========================================
+# Scheduler (Silver Tier)
+# ===========================================
+schedule>=1.2.0
+
+# ===========================================
+# Optional: LinkedIn Poster (Silver Tier)
+# ===========================================
+# Uses playwright (already included above)
+
+# ===========================================
+# Optional: Email Sending (Silver Tier)
+# ===========================================
+# python-dotenv>=1.0.0  # For .env management
