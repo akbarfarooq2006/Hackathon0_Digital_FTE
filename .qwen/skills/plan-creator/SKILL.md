@@ -3,7 +3,7 @@ name: plan-creator
 description: |
   Create structured Plan.md files for multi-step tasks. Analyzes tasks in Needs_Action/,
   breaks them into actionable steps with checkboxes, tracks progress, and updates status.
-  Use this skill when Claude needs to plan complex multi-step tasks or when user mentions
+  Use this skill when Qwen needs to plan complex multi-step tasks or when user mentions
   creating a plan, breaking down tasks, or step-by-step execution.
 ---
 
@@ -49,19 +49,19 @@ Send invoice to client within 24 hours.
 ### Create Plan
 
 ```bash
-claude "Create a plan for responding to the client invoice request"
+qwen "Create a plan for responding to the client invoice request"
 ```
 
 ### Update Plan Progress
 
 ```bash
-claude "Update plan status - completed steps 3 and 4"
+qwen "Update plan status - completed steps 3 and 4"
 ```
 
 ### Review Plans
 
 ```bash
-claude "Review all active plans in Plans/ folder"
+qwen "Review all active plans in Plans/ folder"
 ```
 
 ## Workflow

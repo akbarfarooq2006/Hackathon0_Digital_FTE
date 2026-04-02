@@ -2,7 +2,7 @@
 name: gmail-watcher
 description: |
   Monitor Gmail for new unread/important emails and create action files. Uses Google Gmail API 
-  to fetch emails and creates Markdown files in Needs_Action/ for Claude Code processing. 
+  to fetch emails and creates Markdown files in Needs_Action/ for Qwen Code processing. 
   Use this skill when setting up email monitoring for the AI Employee Silver Tier.
   Triggers when user mentions Gmail monitoring, email watcher, checking emails, or setting up 
   email notifications for the vault.
@@ -107,7 +107,7 @@ New unread/important email?
        ↓
 Create action file in Needs_Action/
        ↓
-Claude Code processes email
+Qwen Code processes email
        ↓
 Reply/Forward/Archive
        ↓

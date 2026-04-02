@@ -49,10 +49,10 @@ Approved (ready to send): 0
 
 ## Workflow: Send an Email
 
-### Method 1: Via Claude (Recommended)
+### Method 1: Via Qwen (Recommended)
 
 ```bash
-claude "Draft an email to client@example.com thanking them for their business"
+qwen "Draft an email to client@example.com thanking them for their business"
 ```
 
 This creates a draft in `Pending_Approval/`:
@@ -196,7 +196,7 @@ Needs_Action/EMAIL_20260330_client_request.md
 ### Step 2: Draft Reply
 
 ```bash
-claude "Draft a reply to the email from John about the project deadline"
+qwen "Reply to John's email about the project deadline"
 ```
 
 This creates a reply draft in `Pending_Approval/` with:
@@ -356,7 +356,7 @@ Gmail Watcher → Detects new email
      ↓
 Creates: Needs_Action/EMAIL_*.md
      ↓
-Claude reads and drafts reply
+Qwen reads and drafts reply
      ↓
 Creates: Pending_Approval/EMAIL_REPLY_*.md
      ↓
@@ -372,7 +372,7 @@ Logs to: Briefings/email_sent_*.md
 For sensitive emails (payments, legal, etc.):
 
 ```
-Claude detects sensitive topic
+Qwen detects sensitive topic
      ↓
 Creates approval request in Pending_Approval/
      ↓
@@ -397,7 +397,7 @@ Hi, when will the project be complete?
 ### Draft Reply
 
 ```bash
-claude "Reply to John's email about the project timeline"
+qwen "Reply to John's email about the project timeline"
 ```
 
 ### Review Draft

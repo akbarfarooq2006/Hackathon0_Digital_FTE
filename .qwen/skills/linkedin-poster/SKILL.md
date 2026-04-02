@@ -34,19 +34,19 @@ POSTING_SCHEDULE=daily
 ### Create Post Draft
 
 ```bash
-claude "Create a LinkedIn post about completing the Bronze Tier AI Employee"
+qwen "Create a LinkedIn post about completing the Bronze Tier AI Employee"
 ```
 
 ### Review Drafts
 
 ```bash
-claude "Show me draft LinkedIn posts in Pending_Approval/"
+qwen "Show me draft LinkedIn posts in Pending_Approval/"
 ```
 
 ### Post After Approval
 
 ```bash
-claude "Post the approved LinkedIn content"
+qwen "Post the approved LinkedIn content"
 ```
 
 ## Post Templates
@@ -128,13 +128,13 @@ What's your take? Share in comments!
 ## Workflow
 
 ```
-Claude drafts post based on topic
+Qwen drafts post based on topic
        ↓
 Save to Pending_Approval/
        ↓
 Human reviews and moves to Approved/
        ↓
-Claude posts via LinkedIn
+Qwen posts via LinkedIn
        ↓
 Log to Briefings/
        ↓

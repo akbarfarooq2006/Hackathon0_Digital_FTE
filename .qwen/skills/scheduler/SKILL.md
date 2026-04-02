@@ -25,20 +25,20 @@ Schedule recurring tasks for the AI Employee.
 
 ```bash
 # Linux/Mac
-0 8 * * * claude "Generate daily briefing and update Dashboard.md"
+0 8 * * * qwen "Generate daily briefing and update Dashboard.md"
 
 # Windows
-schtasks /create /tn "AI_Employee_Daily_Briefing" /tr "claude 'Generate daily briefing'" /sc daily /st 08:00
+schtasks /create /tn "AI_Employee_Daily_Briefing" /tr "qwen 'Generate daily briefing'" /sc daily /st 08:00
 ```
 
 ### Schedule Weekly Audit (Sunday 10 PM)
 
 ```bash
 # Linux/Mac
-0 22 * * 0 claude "Generate weekly CEO briefing from Done/ folder"
+0 22 * * 0 qwen "Generate weekly CEO briefing from Done/ folder"
 
 # Windows
-schtasks /create /tn "AI_Employee_Weekly_Audit" /tr "claude 'Generate weekly briefing'" /sc weekly /d SUN /st 22:00
+schtasks /create /tn "AI_Employee_Weekly_Audit" /tr "qwen 'Generate weekly briefing'" /sc weekly /d SUN /st 22:00
 ```
 
 ### Schedule Watcher Health Check (Every Hour)
@@ -56,9 +56,9 @@ schtasks /create /tn "AI_Employee_Health_Check" /tr "python C:\path\to\check_hea
 ### Daily Tasks
 | Time | Task | Command |
 |------|------|---------|
-| 8:00 AM | Morning briefing | `claude "Generate daily briefing"` |
-| 12:00 PM | Check approvals | `claude "Check Approved/ folder"` |
-| 6:00 PM | End of day summary | `claude "Update Dashboard with today's progress"` |
+| 8:00 AM | Morning briefing | `qwen "Generate daily briefing"` |
+| 12:00 PM | Check approvals | `qwen "Check Approved/ folder"` |
+| 6:00 PM | End of day summary | `qwen "Update Dashboard with today's progress"` |
 
 ### Weekly Tasks
 | Day | Time | Task |
@@ -149,7 +149,7 @@ if __name__ == '__main__':
 
 For scheduled tasks to work:
 
-1. **Claude Code** must be in PATH
+1. **Qwen Code** must be in PATH
 2. **Python** must be in PATH  
 3. **Vault path** must be absolute
 4. **Credentials** must be available to scheduled user
@@ -159,7 +159,7 @@ For scheduled tasks to work:
 ```batch
 @echo off
 cd /d "E:\Projects\AI_Employee"
-call claude "Generate daily briefing" >> logs/daily_briefing.log 2>&1
+call qwen "Generate daily briefing" >> logs/daily_briefing.log 2>&1
 ```
 
 ## Troubleshooting
@@ -167,7 +167,7 @@ call claude "Generate daily briefing" >> logs/daily_briefing.log 2>&1
 | Issue | Solution |
 |-------|----------|
 | Task not running | Check user permissions |
-| Claude not found | Use absolute path to claude |
+| Qwen not found | Use absolute path to qwen |
 | Vault not accessible | Use absolute vault path |
 | No logs | Redirect stdout/stderr to file |
 

@@ -2,13 +2,13 @@
 name: vault-processor
 description: |
   Process files in the AI Employee Obsidian vault. Read from Inbox/Needs_Action,
-  process content using Claude Code reasoning, update Dashboard, and move completed
+  process content using Qwen Code reasoning, update Dashboard, and move completed
   tasks to Done. Core skill for AI Employee Bronze Tier functionality.
 ---
 
 # Vault Processor Skill
 
-Process files and tasks in the AI Employee Obsidian vault using Claude Code.
+Process files and tasks in the AI Employee Obsidian vault using Qwen Code.
 
 ## Vault Structure
 
@@ -31,29 +31,29 @@ AI_Employee_Vault/
 ### Process All Pending Items
 
 ```bash
-claude "Check /Needs_Action folder and process all pending items according to Company_Handbook rules"
+qwen "Check /Needs_Action folder and process all pending items according to Company_Handbook rules"
 ```
 
 ### Update Dashboard
 
 ```bash
-claude "Read all vault files and update Dashboard.md with current status"
+qwen "Read all vault files and update Dashboard.md with current status"
 ```
 
 ### Generate Briefing
 
 ```bash
-claude "Generate a weekly briefing based on completed tasks in /Done"
+qwen "Generate a weekly briefing based on completed tasks in /Done"
 ```
 
 ## Workflow: Process File Drop
 
 1. **Watcher detects** new file in `Inbox/`
 2. **Watcher creates** `.md` action file in `Needs_Action/`
-3. **Claude reads** the action file
-4. **Claude processes** according to Company_Handbook rules
-5. **Claude moves** file to `Done/` when complete
-6. **Claude updates** Dashboard.md
+3. **Qwen reads** the action file
+4. **Qwen processes** according to Company_Handbook rules
+5. **Qwen moves** file to `Done/` when complete
+6. **Qwen updates** Dashboard.md
 
 ## Workflow: Handle Sensitive Actions
 
@@ -148,10 +148,10 @@ status: pending
 
 | Command | Purpose |
 |---------|---------|
-| `claude "Process Needs_Action"` | Process all pending items |
-| `claude "Update Dashboard"` | Refresh dashboard status |
-| `claude "Generate briefing"` | Create weekly report |
-| `claude "Check approvals"` | Process approved actions |
+| `qwen "Process Needs_Action"` | Process all pending items |
+| `qwen "Update Dashboard"` | Refresh dashboard status |
+| `qwen "Generate briefing"` | Create weekly report |
+| `qwen "Check approvals"` | Process approved actions |
 
 ## Error Handling
 

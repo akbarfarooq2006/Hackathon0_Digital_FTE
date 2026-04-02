@@ -1,18 +1,18 @@
 ---
 name: Skill Development
-description: This skill should be used when the user wants to "create a skill", "add a skill to plugin", "write a new skill", "improve skill description", "organize skill content", or needs guidance on skill structure, progressive disclosure, or skill development best practices for Claude Code plugins.
+description: This skill should be used when the user wants to "create a skill", "add a skill to plugin", "write a new skill", "improve skill description", "organize skill content", or needs guidance on skill structure, progressive disclosure, or skill development best practices for Qwen Code plugins.
 version: 0.1.0
 ---
 
-# Skill Development for Claude Code Plugins
+# Skill Development for Qwen Code Plugins
 
-This skill provides guidance for creating effective skills for Claude Code plugins.
+This skill provides guidance for creating effective skills for Qwen Code plugins.
 
 ## About Skills
 
-Skills are modular, self-contained packages that extend Claude's capabilities by providing
+Skills are modular, self-contained packages that extend Qwen's capabilities by providing
 specialized knowledge, workflows, and tools. Think of them as "onboarding guides" for specific
-domains or tasks—they transform Claude from a general-purpose agent into a specialized agent
+domains or tasks—they transform Qwen from a general-purpose agent into a specialized agent
 equipped with procedural knowledge that no model can fully possess.
 
 ### What Skills Provide

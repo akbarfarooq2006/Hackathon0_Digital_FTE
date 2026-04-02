@@ -66,7 +66,7 @@ DEFAULT_FROM=your.email@example.com
 ### Draft an Email (Creates in Pending_Approval/)
 
 ```bash
-claude "Draft an email to client@example.com about the invoice status"
+qwen "Draft an email to client@example.com about the invoice status"
 ```
 
 This creates a file in `Pending_Approval/` like:
@@ -124,7 +124,7 @@ python scripts/send_email.py ../../../AI_Employee_Vault --action list
 ### Reply to an Email
 
 ```bash
-claude "Reply to the email from John about the project deadline"
+qwen "Reply to the email from John about the project deadline"
 ```
 
 This will:
@@ -137,7 +137,7 @@ This will:
 ```
 User requests email
        ↓
-Claude drafts email content
+Qwen drafts email content
        ↓
 Save to Pending_Approval/
        ↓
@@ -316,7 +316,7 @@ Creates: Needs_Action/EMAIL_20260330_client_request.md
 ### Step 2: Draft Reply
 
 ```bash
-claude "Draft a reply to the client's invoice request"
+qwen "Draft a reply to the client's invoice request"
 ```
 
 Creates: `Pending_Approval/EMAIL_REPLY_20260330_client.md`

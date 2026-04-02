@@ -51,13 +51,13 @@ Move this file to `/Approved` folder.
 Move this file to `/Rejected` folder.
 
 ## Notes
-<!-- Claude will add context here -->
+<!-- Qwen will add context here -->
 ```
 
 ## Workflow
 
 ```
-Claude detects sensitive action
+Qwen detects sensitive action
        ↓
 Create approval request in Pending_Approval/
        ↓
@@ -80,19 +80,19 @@ Move to Done/
 ### Create Approval Request
 
 ```bash
-claude "Create approval request for $500 payment to Client A for Invoice #1234"
+qwen "Create approval request for $500 payment to Client A for Invoice #1234"
 ```
 
 ### Check Pending Approvals
 
 ```bash
-claude "Check Pending_Approval folder for items awaiting review"
+qwen "Check Pending_Approval folder for items awaiting review"
 ```
 
 ### Process Approved Items
 
 ```bash
-claude "Process all approved items in Approved/ folder"
+qwen "Process all approved items in Approved/ folder"
 ```
 
 ## Approval Rules (from Company_Handbook.md)

@@ -91,7 +91,7 @@ Unread message with keywords?
        ↓
 Create action file in Needs_Action/
        ↓
-Claude Code processes message
+Qwen Code processes message
        ↓
 Reply/Take action
        ↓
