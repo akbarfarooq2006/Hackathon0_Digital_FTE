@@ -1,20 +1,21 @@
 ---
 name: linkedin-poster
 description: |
-  Create and post LinkedIn content automatically to generate business leads. Drafts posts 
-  based on business updates, achievements, or topics. Supports scheduling and requires 
-  approval before posting. Use this skill when user mentions LinkedIn, social media posting, 
+  Create and post LinkedIn content automatically to generate business leads. 
+  Drafts posts based on business updates, achievements, or topics. Supports 
+  scheduling and requires approval before posting. Uses Playwright for browser 
+  automation. Use this skill when user mentions LinkedIn, social media posting, 
   business content, lead generation, or professional networking.
 ---
 
 # LinkedIn Poster Skill
 
-Create and schedule LinkedIn posts for business growth.
+Create and schedule LinkedIn posts for business growth using Playwright browser automation.
 
 ## Prerequisites
 
 ```bash
-# Install Playwright for browser automation
+# Install Playwright
 pip install playwright
 playwright install chromium
 ```
@@ -23,10 +24,65 @@ playwright install chromium
 
 ### Environment Variables (.env)
 ```bash
+# LinkedIn credentials (optional - can login manually)
 LINKEDIN_EMAIL=your.email@example.com
 LINKEDIN_PASSWORD=your_password
+
+# Vault configuration
 VAULT_PATH=./AI_Employee_Vault
 POSTING_SCHEDULE=daily
+```
+
+## Quick Start
+
+### Step 1: Create Post Draft
+
+```bash
+qwen "Create a LinkedIn post about completing the Bronze Tier AI Employee"
+```
+
+This creates a draft in `Pending_Approval/`:
+
+```markdown
+---
+type: linkedin_post
+topic: achievement
+status: draft
+created: 2026-03-30
+---
+
+# LinkedIn Post Draft
+
+## Topic
+Completing Bronze Tier AI Employee
+
+## Post Content
+
+🎉 Exciting Milestone!
+
+I've just completed the Bronze Tier of my AI Employee project...
+
+#AI #Automation #Innovation
+
+---
+## Instructions
+1. Review and edit content
+2. Move to /Approved to post
+3. Move to /Rejected to discard
+```
+
+### Step 2: Review and Approve
+
+1. Open the draft file in `Pending_Approval/`
+2. Review and edit the content
+3. **To Post:** Move file to `Approved/` folder
+4. **To Discard:** Move file to `Rejected/` folder
+
+### Step 3: Post to LinkedIn
+
+```bash
+cd .qwen/skills/linkedin-poster
+python scripts/post_linkedin.py ../../../AI_Employee_Vault --action post
 ```
 
 ## Usage
@@ -49,6 +105,12 @@ qwen "Show me draft LinkedIn posts in Pending_Approval/"
 qwen "Post the approved LinkedIn content"
 ```
 
+### Generate Content Ideas
+
+```bash
+qwen "Generate 5 LinkedIn post ideas about AI automation"
+```
+
 ## Post Templates
 
 ### Achievement Post
@@ -57,7 +119,6 @@ qwen "Post the approved LinkedIn content"
 type: linkedin_post
 topic: achievement
 status: draft
-created: 2026-03-30
 ---
 
 # 🎉 Milestone Achieved!
@@ -73,9 +134,6 @@ I'm excited to share that I've completed [ACHIEVEMENT]!
 [Brief mention of next goal]
 
 #Hashtag1 #Hashtag2 #Hashtag3
-
----
-[Move to /Approved to post]
 ```
 
 ### Business Update Post
@@ -134,7 +192,7 @@ Save to Pending_Approval/
        ↓
 Human reviews and moves to Approved/
        ↓
-Qwen posts via LinkedIn
+Qwen posts via Playwright
        ↓
 Log to Briefings/
        ↓
@@ -167,12 +225,38 @@ Use 3-5 relevant hashtags per post.
 | `post_linkedin.py` | Browser automation for posting |
 | `generate_content.py` | AI content generation |
 
+### post_linkedin.py Usage
+
+```bash
+# List pending/approved posts
+python scripts/post_linkedin.py <vault> --action list
+
+# Post all approved content
+python scripts/post_linkedin.py <vault> --action post
+
+# Preview a post
+python scripts/post_linkedin.py <vault> --action preview --file FILENAME.md
+```
+
+### generate_content.py Usage
+
+```bash
+# Generate post from topic
+python scripts/generate_content.py <vault> --topic "AI automation"
+
+# Specify post type
+python scripts/generate_content.py <vault> \
+  --topic "Project completion" \
+  --type achievement
+```
+
 ## Security Notes
 
 - Store credentials in .env (never commit)
 - Use app-specific passwords if available
 - Review posts before publishing
 - Respect LinkedIn Terms of Service
+- Browser session saved locally
 
 ## Integration
 
@@ -180,6 +264,7 @@ Works with:
 - **approval-workflow**: Require approval before posting
 - **browsing-with-playwright**: Post via browser automation
 - **scheduler**: Schedule regular posts
+- **plan-creator**: Plan content calendar
 
 ## Best Practices
 
@@ -188,3 +273,52 @@ Works with:
 3. **Engage** - Respond to comments within 24 hours
 4. **Visual content** - Include images when relevant
 5. **Track metrics** - Monitor engagement and adjust
+6. **Human approval** - Always review before posting
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Login failed | Clear browser session, try manual login |
+| Post not publishing | Check LinkedIn session is active |
+| Element not found | Update Playwright: `playwright install chromium` |
+| Rate limited | Wait 24 hours between posts |
+
+## Example: Full LinkedIn Workflow
+
+### Step 1: Create Post
+
+```bash
+qwen "Create a LinkedIn post about our AI Employee Silver Tier completion"
+```
+
+Creates: `Pending_Approval/LINKEDIN_20260330_silver_tier.md`
+
+### Step 2: Review
+
+```markdown
+# Review the draft
+- Check content accuracy
+- Verify hashtags
+- Edit tone if needed
+```
+
+### Step 3: Approve
+
+```
+Move file from Pending_Approval/ to Approved/
+```
+
+### Step 4: Post
+
+```bash
+python scripts/post_linkedin.py ../../../AI_Employee_Vault --action post
+```
+
+### Step 5: Confirmation
+
+```
+✅ Post published successfully!
+Logged to: Briefings/linkedin_post_20260330_103000.md
+Moved to: Done/LINKEDIN_20260330_silver_tier.md
+```
