@@ -1,5 +1,20 @@
 .env
 .env.*
 !.env.example
-credential.json
+token.json
+
+# Secrets (OAuth credentials, API keys)
+secrets/
+
+# Runtime data (generated at runtime)
+data/
+*.log
+
+# Browser sessions
 .linkedin_session/
+.whatsapp_session/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo

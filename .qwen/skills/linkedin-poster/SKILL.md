@@ -222,32 +222,23 @@ Use 3-5 relevant hashtags per post.
 
 | Script | Purpose |
 |--------|---------|
-| `post_linkedin.py` | Browser automation for posting |
-| `generate_content.py` | AI content generation |
+| `authenticate_linkedin.py` | One-time LinkedIn authentication |
+| `post_linkedin.py` | Post approved content to LinkedIn |
+| `generate_content.py` | AI content generation for posts |
 
-### post_linkedin.py Usage
+### Authentication (First Time)
 
 ```bash
-# List pending/approved posts
-python scripts/post_linkedin.py <vault> --action list
-
-# Post all approved content
-python scripts/post_linkedin.py <vault> --action post
-
-# Preview a post
-python scripts/post_linkedin.py <vault> --action preview --file FILENAME.md
+cd .qwen/skills/linkedin-poster/scripts
+python authenticate_linkedin.py
 ```
 
-### generate_content.py Usage
+**Session saved to:** `data/.linkedin_session/` (runtime state, not in skill folder)
+
+### Posting
 
 ```bash
-# Generate post from topic
-python scripts/generate_content.py <vault> --topic "AI automation"
-
-# Specify post type
-python scripts/generate_content.py <vault> \
-  --topic "Project completion" \
-  --type achievement
+python post_linkedin.py ../../../AI_Employee_Vault --action post
 ```
 
 ## Security Notes

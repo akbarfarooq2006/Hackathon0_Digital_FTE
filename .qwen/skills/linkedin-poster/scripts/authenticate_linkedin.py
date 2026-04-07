@@ -24,20 +24,20 @@ except ImportError:
     sys.exit(1)
 
 
-def authenticate_linkedin(email: str = None, password: str = None, 
-                          session_path: str = '.linkedin_session'):
+def authenticate_linkedin(email: str = None, password: str = None):
     """
     Authenticate with LinkedIn and save session.
     
     Args:
         email: LinkedIn email (optional - will prompt for manual login if not provided)
         password: LinkedIn password (optional)
-        session_path: Path to save browser session data
     
     Returns:
         bool: True if authentication successful
     """
-    session_path = Path(session_path)
+    # Session path in /data/ directory (runtime state, not skill definition)
+    project_root = Path(__file__).parents[4]  # Hackathon0_Digital_FTE/
+    session_path = project_root / "data" / ".linkedin_session"
     
     print("\n" + "="*60)
     print("LINKEDIN AUTHENTICATION")
@@ -154,17 +154,16 @@ def authenticate_linkedin(email: str = None, password: str = None,
         return False
 
 
-def check_session(session_path: str = '.linkedin_session'):
+def check_session():
     """
     Check if LinkedIn session is still valid.
-    
-    Args:
-        session_path: Path to session data
     
     Returns:
         bool: True if session is valid
     """
-    session_path = Path(session_path)
+    # Session path in /data/ directory
+    project_root = Path(__file__).parents[4]
+    session_path = project_root / "data" / ".linkedin_session"
     
     if not session_path.exists():
         print("❌ No LinkedIn session found.")
@@ -224,17 +223,15 @@ Examples:
     
     parser.add_argument('--email', '-e', type=str, help='LinkedIn email')
     parser.add_argument('--password', '-p', type=str, help='LinkedIn password')
-    parser.add_argument('--session', '-s', type=str, default='.linkedin_session',
-                       help='Path to save session (default: .linkedin_session)')
     parser.add_argument('--check', '-c', action='store_true',
                        help='Check if existing session is valid')
     
     args = parser.parse_args()
     
     if args.check:
-        success = check_session(args.session)
+        success = check_session()
     else:
-        success = authenticate_linkedin(args.email, args.password, args.session)
+        success = authenticate_linkedin(args.email, args.password)
     
     sys.exit(0 if success else 1)
 

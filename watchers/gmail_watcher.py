@@ -19,8 +19,8 @@ from datetime import datetime
 import base64
 from email import message_from_bytes
 
-# Add parent directory to path for base_watcher
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'watchers'))
+# Add parent directory to path for base_watcher (now in same directory)
+sys.path.insert(0, str(Path(__file__).parent))
 
 try:
     from google.oauth2.credentials import Credentials

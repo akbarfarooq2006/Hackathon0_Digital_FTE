@@ -32,7 +32,7 @@ SCOPES = [
 ]
 
 
-def authenticate(credentials_path: str = 'credential.json', token_path: str = 'token.json'):
+def authenticate(credentials_path: str = None, token_path: str = 'token.json'):
     """
     Authenticate with Gmail API and save token.
     
@@ -40,14 +40,20 @@ def authenticate(credentials_path: str = 'credential.json', token_path: str = 't
         credentials_path: Path to OAuth credentials JSON
         token_path: Path to save OAuth token
     """
-    creds = None
+    # Default to secrets/ folder if not specified
+    if credentials_path is None:
+        project_root = Path(__file__).parents[4]
+        credentials_path = str(project_root / 'secrets' / 'credential.json')
+    
     credentials_path = Path(credentials_path)
     token_path = Path(token_path)
+    
+    creds = None
     
     # Check if credentials file exists
     if not credentials_path.exists():
         print(f"❌ Error: Credentials file not found: {credentials_path}")
-        print("\nPlease ensure credential.json is in the current directory.")
+        print("\nPlease ensure credential.json is in the secrets/ folder.")
         print("You can download it from Google Cloud Console:")
         print("  1. Go to https://console.cloud.google.com/")
         print("  2. Select your project")
@@ -154,8 +160,8 @@ Examples:
     
     parser.add_argument(
         '--credentials', '-c',
-        default='credential.json',
-        help='Path to OAuth credentials JSON (default: credential.json)'
+        default=None,
+        help='Path to OAuth credentials JSON (default: secrets/credential.json)'
     )
     
     parser.add_argument(

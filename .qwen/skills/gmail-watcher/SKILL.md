@@ -116,10 +116,24 @@ Mark as processed (avoid duplicates)
 
 ## Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `gmail_watcher.py` | Main watcher script |
-| `authenticate.py` | OAuth authentication helper |
+| Script | Location | Purpose |
+|--------|----------|---------|
+| `gmail_watcher.py` | `/watchers/` | Main watcher daemon (runs continuously) |
+| `authenticate.py` | `scripts/` | OAuth authentication helper (run once) |
+
+### Running the Watcher
+
+```bash
+cd watchers
+python gmail_watcher.py ../AI_Employee_Vault
+```
+
+### First-Time Authentication
+
+```bash
+cd .qwen/skills/gmail-watcher/scripts
+python authenticate.py
+```
 
 ## Troubleshooting
 

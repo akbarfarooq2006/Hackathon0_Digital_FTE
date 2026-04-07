@@ -25,7 +25,7 @@ pip install -r requirements.txt
 
 ## Step 1: Gmail Setup (10 minutes)
 
-Your `credentials.json` is already configured. Just need to authenticate:
+Your `secrets/credential.json` is already configured. Just need to authenticate:
 
 ### Authenticate with Gmail
 
@@ -199,7 +199,7 @@ schtasks /create /tn "AI_Weekly_Briefing" /tr "E:\path\to\weekly_briefing.bat" /
 ### Gmail Authentication Failed
 
 **Check:**
-1. `credentials.json` exists in project root
+1. `secrets/credential.json` exists in project root
 2. Gmail API enabled in Google Cloud Console
 3. OAuth consent screen configured
 
@@ -266,7 +266,7 @@ After Silver Tier is working:
 
 | File | Purpose |
 |------|---------|
-| `credentials.json` | Google OAuth credentials |
+| `secrets/credential.json` | Google OAuth credentials |
 | `token.json` | Gmail OAuth token (auto-generated) |
 | `.env` | Environment configuration |
 | `requirements.txt` | Python dependencies |
@@ -279,13 +279,13 @@ After Silver Tier is working:
 1. **Never commit:**
    - `token.json`
    - `.env`
-   - `credentials.json`
+   - `secrets/credential.json`
 
 2. **Add to `.gitignore`:**
    ```
    token.json
    .env
-   credential.json
+   secrets/
    *.log
    ```
 

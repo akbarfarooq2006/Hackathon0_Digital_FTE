@@ -293,7 +293,7 @@ python scripts/post_linkedin.py ../../../AI_Employee_Vault --action post
 
 ```bash
 # Gmail Configuration
-GMAIL_CREDENTIALS_PATH=./credential.json
+GMAIL_CREDENTIALS_PATH=./secrets/credential.json
 GMAIL_TOKEN_PATH=./token.json
 GMAIL_CHECK_INTERVAL=120
 
@@ -411,13 +411,13 @@ python gmail_watcher.py ../../../AI_Employee_Vault --interval 30
 1. **Never commit:**
    - `token.json`
    - `.env`
-   - `credentials.json`
+   - `secrets/` folder (contains credential.json)
 
 2. **Add to `.gitignore`:**
    ```
    token.json
    .env
-   credential.json
+   secrets/
    *.log
    .whatsapp_session/
    .linkedin_session/

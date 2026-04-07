@@ -35,7 +35,7 @@ class LinkedInPoster:
     def __init__(self, vault_path: str, email: str = None, password: str = None):
         """
         Initialize LinkedIn Poster.
-        
+
         Args:
             vault_path: Path to the Obsidian vault root
             email: LinkedIn email (or from .env)
@@ -46,38 +46,44 @@ class LinkedInPoster:
         self.approved = self.vault_path / 'Approved'
         self.done = self.vault_path / 'Done'
         self.briefings = self.vault_path / 'Briefings'
-        
+
         # Ensure folders exist
         for folder in [self.pending_approval, self.approved, self.done, self.briefings]:
             folder.mkdir(parents=True, exist_ok=True)
-        
+
         # Load credentials from .env if not provided
         self.email = email or os.getenv('LINKEDIN_EMAIL')
         self.password = password or os.getenv('LINKEDIN_PASSWORD')
-        
+
+        # Session path in /data/ directory (runtime state, not skill definition)
+        # vault_path is AI_Employee_Vault/, so project root is parent
+        project_root = self.vault_path.parent
+        self.session_path = project_root / "data" / ".linkedin_session"
+
         self.browser = None
         self.context = None
         self.page = None
         self.logger = logging.getLogger('LinkedInPoster')
-    
+
     def _initialize_browser(self):
         """Initialize Playwright browser."""
         try:
             playwright = sync_playwright().start()
-            
+
             self.context = playwright.chromium.launch_persistent_context(
-                user_data_dir=str(self.vault_path / '.linkedin_session'),
+                user_data_dir=str(self.session_path),
                 headless=False,  # Show browser for debugging
                 args=[
                     '--disable-blink-features=AutomationControlled',
                     '--no-sandbox'
                 ]
             )
-            
+
             self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
             self.page.set_viewport_size({'width': 1280, 'height': 720})
-            
+
             self.logger.info("Browser initialized")
+            self.logger.info(f"Session path: {self.session_path}")
             return True
             
         except Exception as e:
