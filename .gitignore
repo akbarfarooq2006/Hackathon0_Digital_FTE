@@ -18,3 +18,11 @@ data/
 __pycache__/
 *.pyc
 *.pyo
+
+AI_Employee_Vault/Needs_Action/*
+AI_Employee_Vault/Done/*
+AI_Employee_Vault/Pending_Approval/*
+AI_Employee_Vault/Approved/*
+AI_Employee_Vault/Briefings/*
+AI_Employee_Vault/Plans/*
+AI_Employee_Vault/Logs/

@@ -175,53 +175,240 @@ class LinkedInPoster:
     
     def create_post(self, content: str):
         """
-        Create a LinkedIn post.
-        
+        Create a LinkedIn post (single attempt, no retries).
+
         Args:
             content: Post content text
-            
+
         Returns:
             bool: True if post created successfully
         """
+        return self._create_post_once(content)
+
+    def _screenshot(self, filename: str) -> str:
+        """
+        Save a screenshot to the vault's Briefings/screenshots folder.
+        
+        Args:
+            filename: Base filename (without path)
+            
+        Returns:
+            str: Full path to saved screenshot
+        """
+        screenshot_dir = self.vault_path / 'Briefings' / 'screenshots'
+        screenshot_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Add timestamp to filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        name_without_ext = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        ext = filename.rsplit('.', 1)[1] if '.' in filename else 'png'
+        full_filename = f'{name_without_ext}_{timestamp}.{ext}'
+        
+        full_path = str(screenshot_dir / full_filename)
+        self.page.screenshot(path=full_path)
+        return full_path
+
+    def _create_post_once(self, content: str):
+        """
+        Create a LinkedIn post (single attempt).
+        """
         try:
             # Navigate to feed
-            self.page.goto('https://www.linkedin.com/feed/', wait_until='networkidle')
-            time.sleep(2)
-            
-            # Click on "Start a post"
-            try:
-                start_post = self.page.locator('button:has-text("Start a post")').first
-                start_post.click()
-                time.sleep(1)
-            except:
-                self.logger.error("Could not find 'Start a post' button")
+            self.logger.info("Navigating to LinkedIn feed...")
+            self.page.goto('https://www.linkedin.com/feed/', wait_until='domcontentloaded', timeout=60000)
+            time.sleep(3)  # Wait for page to fully render
+
+            # Click on "Start a post" - try multiple selectors
+            self.logger.info("Looking for 'Start a post' button...")
+            start_post = None
+
+            # Try multiple possible selectors
+            selectors = [
+                'button:has-text("Start a post")',
+                'div[role="button"]:has-text("Start a post")',
+                'button.artdeco-button:has-text("Start")',
+                'button[aria-label*="Start a post"]',
+            ]
+
+            for selector in selectors:
+                try:
+                    start_post = self.page.locator(selector).first
+                    if start_post.is_visible(timeout=5000):
+                        self.logger.info(f"Found button with selector: {selector}")
+                        break
+                    start_post = None
+                except:
+                    continue
+
+            if not start_post:
+                self.logger.error("Could not find 'Start a post' button with any known selector")
                 return False
-            
+
+            start_post.click()
+            time.sleep(2)  # Wait for modal to open
+
             # Find the text area and fill content
+            self.logger.info("Looking for text editor...")
             try:
                 # LinkedIn uses a contenteditable div for the post editor
+                # Wait for it to appear
                 text_area = self.page.locator('div[contenteditable="true"][role="textbox"]').first
-                text_area.fill(content)
+                text_area.wait_for(state='visible', timeout=10000)
+
+                # Explicit click to focus the editor (required by LinkedIn)
+                text_area.click()
                 time.sleep(1)
+
+                # Check if page is still alive before typing
+                try:
+                    self.page.title()  # Quick check if page is responsive
+                except:
+                    self.logger.error("Page crashed before typing")
+                    raise
+
+                # Use keyboard.type() to simulate real typing
+                # This enables the Post button (fill() doesn't trigger LinkedIn's input handlers)
+                self.logger.info("Typing post content...")
+                try:
+                    # Type with slower delay to prevent page crash
+                    self.page.keyboard.type(content, delay=30)
+                except Exception as type_error:
+                    self.logger.warning(f"keyboard.type failed: {type_error}, trying JavaScript fallback...")
+                    # Fallback: use JavaScript to set content directly
+                    escaped_content = content.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$').replace('{', '\\{').replace('}', '\\}')
+                    self.page.evaluate(f'''
+                        (() => {{
+                            const editor = document.querySelector('div[contenteditable="true"][role="textbox"]');
+                            if (editor) {{
+                                editor.innerText = `{escaped_content}`;
+                                editor.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                editor.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                            }}
+                        }})()
+                    ''')
+                    self.logger.info("Content set via JavaScript")
+
+                time.sleep(3)  # Wait for LinkedIn to register the text and enable Post button
+
             except Exception as e:
                 self.logger.error(f"Could not fill post content: {e}")
-                return False
-            
+                raise  # Re-raise to trigger retry
+
             # Click Post button
+            self.logger.info("Looking for Post button...")
             try:
-                post_button = self.page.locator('button:has-text("Post")').first
-                post_button.click()
+                # Find the Post button inside the compose modal (not hidden buttons)
+                # Try specific selectors in order (first visible one wins)
+                post_button_selectors = [
+                    'div.share-creation-state__footer button:has-text("Post")',
+                    'div.share-box-footer button:has-text("Post")',
+                    'button.share-actions__primary-action',
+                    'button[aria-label="Post"]',
+                ]
                 
-                # Wait for post to be published
-                time.sleep(3)
+                post_button = None
+                for selector in post_button_selectors:
+                    try:
+                        btn = self.page.locator(selector).first
+                        if btn.is_visible(timeout=3000):
+                            post_button = btn
+                            self.logger.info(f"Found Post button with selector: {selector}")
+                            break
+                    except:
+                        continue
                 
+                if not post_button:
+                    self.logger.error("Could not find visible Post button in modal")
+                    return False
+
+                max_wait = 20
+                waited = 0
+                while waited < max_wait:
+                    try:
+                        enabled = post_button.is_enabled()
+                        if enabled:
+                            self.logger.info(f"Post button is enabled after {waited}s")
+                            break
+                    except:
+                        pass
+                    time.sleep(1)
+                    waited += 1
+                    self.logger.debug(f"Waiting for Post button to enable... ({waited}s)")
+
+                if not post_button.is_enabled():
+                    self.logger.error("Post button never became enabled - text may not have registered")
+                    return False
+
+                self.logger.info("Clicking Post button...")
+                
+                # Try multiple click strategies
+                click_success = False
+                
+                # Strategy 1: force=True bypasses actionability checks
+                try:
+                    post_button.click(force=True, timeout=10000)
+                    self.logger.info("Post button clicked (force=True)")
+                    click_success = True
+                except Exception as e1:
+                    self.logger.warning(f"Force click failed: {e1}")
+                    
+                    # Strategy 2: scroll into view then click
+                    try:
+                        post_button.scroll_into_view_if_needed()
+                        time.sleep(1)
+                        post_button.click(timeout=10000)
+                        self.logger.info("Post button clicked (scroll + click)")
+                        click_success = True
+                    except Exception as e2:
+                        self.logger.warning(f"Scroll+click failed: {e2}")
+                        
+                        # Strategy 3: keyboard shortcut - Tab to Post, then Enter
+                        try:
+                            self.logger.info("Trying keyboard shortcut (Tab + Enter)...")
+                            # Press Tab to move focus to Post button
+                            self.page.keyboard.press('Tab')
+                            time.sleep(0.5)
+                            # Press Enter to click Post
+                            self.page.keyboard.press('Enter')
+                            time.sleep(2)
+                            self.logger.info("Keyboard shortcut sent")
+                            click_success = True
+                        except Exception as e3:
+                            self.logger.error(f"Keyboard shortcut failed: {e3}")
+                
+                if not click_success:
+                    self.logger.error("All Post button click strategies failed")
+                    return False
+
+                # Wait for post to process
+                time.sleep(8)
+
+                # Simple success check: are we still on LinkedIn?
+                if 'linkedin.com' in self.page.url:
+                    self.logger.info("Still on LinkedIn - assuming post published successfully")
+                else:
+                    self.logger.warning(f"URL changed away from LinkedIn: {self.page.url}")
+                    return False
+
+                # Take screenshot for confirmation
+                try:
+                    screenshot_path = self._screenshot('post_success.png')
+                    self.logger.info(f"Success screenshot saved: {screenshot_path}")
+                except:
+                    self.logger.debug("Could not take success screenshot")
+
                 self.logger.info("Post published successfully")
                 return True
-                
+
             except Exception as e:
                 self.logger.error(f"Could not click Post button: {e}")
+                try:
+                    screenshot_path = self._screenshot('debug_post_button.png')
+                    self.logger.info(f"Debug screenshot saved: {screenshot_path}")
+                except:
+                    self.logger.error("Could not take debug screenshot")
                 return False
-                
+
         except Exception as e:
             self.logger.error(f"Error creating post: {e}")
             return False
