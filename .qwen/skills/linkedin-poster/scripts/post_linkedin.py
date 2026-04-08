@@ -41,7 +41,8 @@ class LinkedInPoster:
             email: LinkedIn email (or from .env)
             password: LinkedIn password (or from .env)
         """
-        self.vault_path = Path(vault_path)
+        # Resolve to absolute path immediately
+        self.vault_path = Path(vault_path).resolve()
         self.pending_approval = self.vault_path / 'Pending_Approval'
         self.approved = self.vault_path / 'Approved'
         self.done = self.vault_path / 'Done'
@@ -64,6 +65,10 @@ class LinkedInPoster:
         self.context = None
         self.page = None
         self.logger = logging.getLogger('LinkedInPoster')
+        
+        # Log paths for debugging
+        self.logger.debug(f"Vault path: {self.vault_path}")
+        self.logger.debug(f"Approved folder: {self.approved}")
 
     def _initialize_browser(self):
         """Initialize Playwright browser."""
@@ -92,56 +97,78 @@ class LinkedInPoster:
     
     def login(self):
         """
-        Login to LinkedIn.
-        
+        Login to LinkedIn. Checks saved session first, only goes to /login if expired.
+
         Returns:
             bool: True if login successful
         """
         try:
-            self.page.goto('https://www.linkedin.com/login', wait_until='networkidle')
-            
-            # Check if already logged in
-            if 'feed' in self.page.url:
+            # Step 1: Try going to feed first (check if session is valid)
+            self.logger.info("Checking if existing session is valid...")
+            try:
+                self.page.goto('https://www.linkedin.com/feed/', wait_until='domcontentloaded', timeout=60000)
+            except PlaywrightTimeout:
+                self.logger.warning("Feed page timed out, trying login page...")
+
+            # Check if we landed on feed (session valid)
+            if '/feed' in self.page.url or '/mynetwork' in self.page.url or '/jobs' in self.page.url:
+                self.logger.info(f"Session valid! Current page: {self.page.url}")
+                return True
+
+            # Step 2: If redirected to login, go to login page
+            if '/login' not in self.page.url:
+                self.logger.info("Session expired, navigating to login page...")
+                try:
+                    self.page.goto('https://www.linkedin.com/login', wait_until='domcontentloaded', timeout=60000)
+                except PlaywrightTimeout:
+                    self.logger.warning("Login page timed out, continuing anyway...")
+
+            # Check if already on feed after redirect
+            if '/feed' in self.page.url:
                 self.logger.info("Already logged in")
                 return True
-            
-            # Enter credentials
+
+            # Step 3: Try automated login if credentials provided
             if self.email and self.password:
-                self.logger.info("Logging in...")
-                
-                # Find and fill email field
-                email_field = self.page.locator('input[id="username"]')
-                email_field.fill(self.email)
-                
-                # Find and fill password field
-                password_field = self.page.locator('input[id="password"]')
-                password_field.fill(self.password)
-                
-                # Click sign in button
-                sign_in_btn = self.page.locator('button[type="submit"]')
-                sign_in_btn.click()
-                
-                # Wait for navigation
+                self.logger.info("Attempting automated login...")
+
                 try:
-                    self.page.wait_for_url('**/feed/**', timeout=10000)
-                    self.logger.info("Login successful")
-                    return True
-                except PlaywrightTimeout:
-                    self.logger.error("Login failed - check credentials")
-                    return False
-            else:
-                self.logger.warning("No credentials provided - manual login required")
-                self.logger.info("Please login manually in the browser window")
-                
-                # Wait for user to login
-                try:
-                    self.page.wait_for_url('**/feed/**', timeout=120000)  # 2 min timeout
-                    self.logger.info("Manual login detected")
-                    return True
-                except PlaywrightTimeout:
-                    self.logger.error("Manual login timeout")
-                    return False
-                    
+                    # Find and fill email field
+                    email_field = self.page.locator('input[id="username"]')
+                    email_field.fill(self.email)
+
+                    # Find and fill password field
+                    password_field = self.page.locator('input[id="password"]')
+                    password_field.fill(self.password)
+
+                    # Click sign in button
+                    sign_in_btn = self.page.locator('button[type="submit"]')
+                    sign_in_btn.click()
+
+                    # Wait for navigation to feed
+                    try:
+                        self.page.wait_for_url('**/feed/**', timeout=30000)
+                        self.logger.info("Login successful")
+                        return True
+                    except PlaywrightTimeout:
+                        self.logger.error("Login failed - check credentials")
+                        return False
+                except Exception as e:
+                    self.logger.warning(f"Automated login failed: {e}")
+
+            # Step 4: Fall back to manual login
+            self.logger.warning("No credentials provided or automated login failed")
+            self.logger.info("Please login manually in the browser window")
+
+            # Wait for user to login
+            try:
+                self.page.wait_for_url('**/feed/**', timeout=120000)  # 2 min timeout
+                self.logger.info("Manual login detected")
+                return True
+            except PlaywrightTimeout:
+                self.logger.error("Manual login timeout")
+                return False
+
         except Exception as e:
             self.logger.error(f"Login error: {e}")
             return False
@@ -239,7 +266,7 @@ class LinkedInPoster:
     def process_approved_posts(self):
         """
         Process all approved post files and publish them.
-        
+
         Returns:
             dict: Results summary
         """
@@ -249,12 +276,42 @@ class LinkedInPoster:
             'failed': 0,
             'files': []
         }
-        
+
         # Find all approved LinkedIn post files
-        approved_files = list(self.approved.glob('LINKEDIN_*.md'))
-        
+        # Look for ANY .md files in Approved folder, then check if they're LinkedIn posts
+        approved_files = []
+        for filepath in self.approved.glob('*.md'):
+            try:
+                content = filepath.read_text(encoding='utf-8')
+                # Check if it's a LinkedIn post (has type: linkedin_post in frontmatter)
+                if 'type: linkedin_post' in content or 'type:linkedin_post' in content:
+                    approved_files.append(filepath)
+            except Exception:
+                continue
+
         if not approved_files:
             self.logger.info("No approved LinkedIn posts to process")
+            self.logger.info(f"Checked folder: {self.approved}")
+            self.logger.info(f"Folder exists: {self.approved.exists()}")
+            # List what IS in the folder for debugging
+            try:
+                all_files = list(self.approved.glob('*'))
+                if all_files:
+                    self.logger.info(f"Found {len(all_files)} files in Approved folder:")
+                    for f in all_files:
+                        self.logger.info(f"  - {f.name} (is_file: {f.is_file()})")
+                        # Check content for LinkedIn type
+                        if f.is_file() and f.suffix == '.md':
+                            try:
+                                content = f.read_text(encoding='utf-8')
+                                has_linkedin_type = 'type: linkedin_post' in content or 'type:linkedin_post' in content
+                                self.logger.info(f"    Contains 'type: linkedin_post': {has_linkedin_type}")
+                            except Exception as e:
+                                self.logger.info(f"    Could not read file: {e}")
+                else:
+                    self.logger.info("Approved folder is empty")
+            except Exception as e:
+                self.logger.error(f"Could not list Approved folder: {e}")
             return results
         
         self.logger.info(f"Found {len(approved_files)} approved posts")
@@ -362,17 +419,34 @@ def main():
     )
     
     if args.action == 'list':
-        # List pending and approved posts
-        pending = list(poster.pending_approval.glob('LINKEDIN_*.md'))
-        approved = list(poster.approved.glob('LINKEDIN_*.md'))
+        # List pending and approved posts (flexible pattern matching)
+        def find_linkedin_posts(folder):
+            """Find all LinkedIn post files in a folder."""
+            posts = []
+            for filepath in folder.glob('*.md'):
+                try:
+                    content = filepath.read_text(encoding='utf-8')
+                    if 'type: linkedin_post' in content or 'type:linkedin_post' in content:
+                        posts.append(filepath)
+                except Exception:
+                    continue
+            return posts
         
-        print(f"\nPending Approval: {len(pending)}")
+        pending = find_linkedin_posts(poster.pending_approval)
+        approved = find_linkedin_posts(poster.approved)
+
+        print(f"\nVault path: {poster.vault_path}")
+        print(f"Pending Approval: {len(pending)}")
         for f in pending:
             print(f"  - {f.name}")
-        
+
         print(f"\nApproved (ready to post): {len(approved)}")
         for f in approved:
             print(f"  - {f.name}")
+        
+        if not pending and not approved:
+            print("\nNo LinkedIn posts found.")
+            print("Create a post with: qwen \"Create a LinkedIn post about [topic]\"")
     
     elif args.action == 'draft':
         # Create a draft post
