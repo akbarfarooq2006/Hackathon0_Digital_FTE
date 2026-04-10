@@ -32,7 +32,7 @@ SCOPES = [
 ]
 
 
-def authenticate(credentials_path: str = None, token_path: str = 'token.json'):
+def authenticate(credentials_path: str = None, token_path: str = None):
     """
     Authenticate with Gmail API and save token.
     
@@ -40,11 +40,17 @@ def authenticate(credentials_path: str = None, token_path: str = 'token.json'):
         credentials_path: Path to OAuth credentials JSON
         token_path: Path to save OAuth token
     """
-    # Default to secrets/ folder if not specified
+    # Resolve project root (4 levels up from scripts/)
+    project_root = Path(__file__).parents[4]
+
+    # Default to secrets/ folder for credentials
     if credentials_path is None:
-        project_root = Path(__file__).parents[4]
         credentials_path = str(project_root / 'secrets' / 'credential.json')
-    
+
+    # Default to data/ folder for generated token (runtime artifact)
+    if token_path is None:
+        token_path = str(project_root / 'data' / 'gmail_token.json')
+
     credentials_path = Path(credentials_path)
     token_path = Path(token_path)
     
@@ -166,8 +172,8 @@ Examples:
     
     parser.add_argument(
         '--token', '-t',
-        default='token.json',
-        help='Path to save OAuth token (default: token.json)'
+        default=None,
+        help='Path to save OAuth token (default: data/gmail_token.json)'
     )
     
     args = parser.parse_args()

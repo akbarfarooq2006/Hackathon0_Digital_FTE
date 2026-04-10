@@ -326,9 +326,14 @@ def main():
                        help='Check interval in seconds (default: 120)')
     parser.add_argument('--keywords', type=str, default='',
                        help='Comma-separated keywords for high priority')
-    parser.add_argument('--credentials', type=str, default='./credentials.json',
+    # Resolve project root (2 levels up from watchers/)
+    _project_root = Path(__file__).parent.parent
+
+    parser.add_argument('--credentials', type=str,
+                       default=str(_project_root / 'secrets' / 'credential.json'),
                        help='Path to Gmail credentials JSON')
-    parser.add_argument('--token', type=str, default='./token.json',
+    parser.add_argument('--token', type=str,
+                       default=str(_project_root / 'data' / 'gmail_token.json'),
                        help='Path to store OAuth token')
     
     args = parser.parse_args()
