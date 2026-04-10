@@ -585,11 +585,14 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description='LinkedIn Poster for AI Employee')
     parser.add_argument('vault_path', help='Path to Obsidian vault')
-    parser.add_argument('--action', type=str, choices=['draft', 'post', 'list'],
+    parser.add_argument('--action', type=str, choices=['draft', 'post', 'list', 'draft-and-post'],
                        default='list', help='Action to perform')
     parser.add_argument('--email', type=str, help='LinkedIn email')
     parser.add_argument('--password', type=str, help='LinkedIn password')
     parser.add_argument('--topic', type=str, help='Post topic (for draft action)')
+    parser.add_argument('--type', type=str, default='achievement',
+                       choices=['achievement', 'update', 'thought_leadership', 'lesson', 'question'],
+                       help='Post type (for draft action)')
     
     args = parser.parse_args()
     
@@ -677,15 +680,141 @@ created: {datetime.now().isoformat()}
         # Post all approved content
         print("Processing approved LinkedIn posts...")
         results = poster.process_approved_posts()
+
+        print(f"\n=== Results ===")
+        print(f"Processed: {results['processed']}")
+        print(f"Success: {results['success']}")
+        print(f"Failed: {results['failed']}")
+
+        for file_result in results['files']:
+            status_icon = '✅' if file_result['status'] == 'success' else '❌'
+            print(f"  {status_icon} {file_result['file']}")
+
+    elif args.action == 'draft-and-post':
+        # Create draft and post immediately (skip approval)
+        if not args.topic:
+            print("Error: --topic required for draft-and-post action")
+            sys.exit(1)
+
+        print(f"\n=== Draft and Post: {args.topic} ===\n")
+        
+        # Step 1: Create draft
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        safe_topic = args.topic.replace(" ", "_")[:30]
+        filename = f'LINKEDIN_{timestamp}_{safe_topic}.md'
+        
+        # Generate content based on post type
+        content_templates = {
+            'achievement': f'''🎉 Milestone Achieved!
+
+I'm excited to share that I've completed: {args.topic}!
+
+This represents hours of learning and building.
+
+## Key Takeaways
+- Learned new skills
+- Built practical solutions
+- Ready for next challenge
+
+#AI #Automation #DigitalFTE #Learning''',
+            'update': f'''📈 Business Update
+
+Quick update on: {args.topic}
+
+Here's what's happening:
+✅ Making progress
+🚀 Building momentum
+💡 Learning along the way
+
+#Business #Innovation #Growth''',
+            'thought_leadership': f'''💭 Industry Insight
+
+Thoughts on: {args.topic}
+
+Here's what I'm seeing:
+
+**The Challenge:**
+Many are struggling with this space.
+
+**The Opportunity:**
+There's huge potential for those who embrace it.
+
+**The Future:**
+This is just the beginning.
+
+What's your take?
+
+#Leadership #Innovation #Future''',
+            'lesson': f'''📚 Lesson Learned
+
+Today I learned about: {args.topic}
+
+Key insight:
+Every challenge is an opportunity in disguise.
+
+What's a recent lesson you've learned?
+
+#Learning #Growth #ProfessionalDevelopment''',
+            'question': f'''❓ Quick Question for My Network
+
+Regarding: {args.topic}
+
+What's your experience with this?
+
+I'd love to hear different perspectives.
+
+Drop your thoughts below! 👇
+
+#Discussion #Networking #Community'''
+        }
+        
+        post_content = content_templates.get(args.type, content_templates['achievement'])
+        
+        draft_content = f'''---
+type: linkedin_post
+topic: {args.topic}
+post_type: {args.type}
+status: draft
+created: {datetime.now().isoformat()}
+---
+
+# LinkedIn Post Draft
+
+## Topic
+{args.topic}
+
+## Post Content
+
+{post_content}
+
+---
+## Instructions
+Created and posted automatically via draft-and-post command.
+'''
+        
+        filepath = poster.pending_approval / filename
+        filepath.write_text(draft_content, encoding='utf-8')
+        print(f"Step 1: Draft created - {filename}")
+        
+        # Step 2: Move to Approved (auto-approve)
+        approved_path = poster.approved / filename
+        filepath.rename(approved_path)
+        print(f"Step 2: Auto-approved (moved to Approved/)")
+        
+        # Step 3: Post immediately
+        print(f"Step 3: Posting to LinkedIn...")
+        results = poster.process_approved_posts()
         
         print(f"\n=== Results ===")
         print(f"Processed: {results['processed']}")
         print(f"Success: {results['success']}")
         print(f"Failed: {results['failed']}")
-        
+
         for file_result in results['files']:
             status_icon = '✅' if file_result['status'] == 'success' else '❌'
             print(f"  {status_icon} {file_result['file']}")
+            if file_result.get('error'):
+                print(f"      Error: {file_result['error']}")
     
     poster.close()
 
