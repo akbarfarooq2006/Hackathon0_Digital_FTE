@@ -26,3 +26,8 @@ AI_Employee_Vault/Approved/*
 AI_Employee_Vault/Briefings/*
 AI_Employee_Vault/Plans/*
 AI_Employee_Vault/Logs/
+
+# Runtime cache files generated in vault root
+AI_Employee_Vault/.gmail_cache.json
+AI_Employee_Vault/.whatsapp_cache.json
+AI_Employee_Vault/.cache*.json
