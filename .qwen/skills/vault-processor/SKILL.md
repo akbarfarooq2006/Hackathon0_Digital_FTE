@@ -31,7 +31,7 @@ AI_Employee_Vault/
 ### Process All Pending Items
 
 ```bash
-qwen "Check /Needs_Action folder and process all pending items according to Company_Handbook rules"
+qwen "Check AI_Employee_Vault/Needs_Action folder and process all pending items according to Company_Handbook rules"
 ```
 
 ### Update Dashboard
