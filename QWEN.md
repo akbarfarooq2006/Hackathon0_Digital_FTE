@@ -128,13 +128,14 @@ python .qwen/skills/browsing-with-playwright/scripts/mcp-client.py call \
 All inter-component communication happens via Markdown files:
 
 | Folder | Purpose |
-|--------|---------|
-| `/Inbox` | Raw incoming data |
-| `/Needs_Action` | Items requiring AI processing |
-| `/Pending_Approval` | Actions awaiting human approval |
-| `/Approved` | Approved actions ready for execution |
-| `/Done` | Completed tasks |
-| `/Briefings` | CEO briefings and reports |
+|--------|---------| 
+| `AI_Employee_Vault/Inbox` | Raw incoming data |
+| `AI_Employee_Vault/Needs_Action` | Items requiring AI processing |
+| `AI_Employee_Vault/Pending_Approval` | Actions awaiting human approval |
+| `AI_Employee_Vault/Approved` | Approved actions ready for execution |
+| `AI_Employee_Vault/Done` | Completed tasks |
+| `AI_Employee_Vault/Briefings` | CEO briefings and reports |
+| `AI_Employee_Vault/Plans` | Step-by-step task plans with checkboxes |
 
 ### Watcher Script Pattern
 
