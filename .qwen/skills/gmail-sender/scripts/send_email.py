@@ -66,8 +66,8 @@ class GmailSender:
             folder.mkdir(parents=True, exist_ok=True)
         
         # Set credential paths
-        self.credentials_path = Path(credentials_path) if credentials_path else self.vault_path.parent / 'credentials.json'
-        self.token_path = Path(token_path) if token_path else self.vault_path.parent / 'token.json'
+        self.credentials_path = Path(credentials_path) if credentials_path else self.vault_path.parent / 'secrets' / 'credential.json'
+        self.token_path = Path(token_path) if token_path else self.vault_path.parent / 'data' / 'gmail_token.json'
         
         self.service = None
         self.logger = logging.getLogger('GmailSender')
@@ -526,7 +526,7 @@ def main():
                 
                 print(f"\nDetails:")
                 for r in results:
-                    icon = '✅' if r['success'] else '❌'
+                    icon = '[OK]' if r['success'] else '[FAIL]'
                     print(f"  {icon} {r['file']}")
                     if r.get('error'):
                         print(f"      Error: {r['error']}")

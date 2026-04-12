@@ -1,288 +1,183 @@
 ---
 name: gmail-sender
 description: |
-  Draft and send emails via Gmail API. Creates draft emails in Pending_Approval/ for human 
-  review, then sends them after approval. Logs all sent emails to Briefings/ for audit trail.
-  Use this skill when you need to reply to emails, send new messages, or manage email 
-  communications. Triggers when user mentions sending email, replying to email, drafting 
-  email, or any email composition task.
+  Draft and send emails via Gmail API with human-in-the-loop approval. 
+  Provides MCP server tools: email_send(), email_draft(), email_list().
+  Use this skill when user mentions sending email, replying to email, drafting 
+  email, listing emails, or any email composition task. Always use email_draft 
+  for outgoing emails - never send directly without approval.
 ---
 
-# Gmail Sender Skill
+# Gmail Sender Skill (MCP Server)
 
-Draft and send emails via Gmail API with human-in-the-loop approval.
+Draft and send emails via Gmail MCP server with human-in-the-loop approval.
 
 ## Prerequisites
 
-### 1. Gmail API Setup (Same as gmail-watcher)
+### 1. Gmail API Setup
 
-This skill shares credentials with **gmail-watcher**. If you've already set up Gmail monitoring, you're ready to go!
+Your `secrets/credential.json` is already configured. Just need to authenticate:
 
 ```bash
-# Install dependencies
+cd .qwen/skills/gmail-watcher/scripts
+python authenticate.py
+```
+
+**Expected output:**
+```
+✓ Authenticated as: your.email@gmail.com
+✓ Token saved to: data/gmail_token.json
+```
+
+### 2. Install Dependencies
+
+```bash
 pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
-
-# Authenticate (if not already done)
-cd .qwen/skills/gmail-watcher
-python scripts/gmail_watcher.py ../../../AI_Employee_Vault --authenticate
 ```
 
-### 2. Required Scopes
-
-For sending emails, you need these Gmail API scopes:
-
-```python
-SCOPES = [
-    'https://www.googleapis.com/auth/gmail.readonly',   # Read emails
-    'https://www.googleapis.com/auth/gmail.send',       # Send emails
-    'https://www.googleapis.com/auth/gmail.compose'     # Create drafts
-]
-```
-
-If you authenticated with only readonly scope, re-authenticate:
+## Starting the MCP Server
 
 ```bash
-# Delete old token to force re-authentication
-rm token.json
-python scripts/gmail_watcher.py ../../../AI_Employee_Vault --authenticate
+cd .qwen/skills/gmail-sender/scripts
+python email_mcp_server.py
+```
+
+The server runs on stdin/stdout using MCP protocol. It will be automatically detected by Qwen Code.
+
+## Available MCP Tools
+
+| Tool | Purpose | Usage |
+|------|---------|-------|
+| `email_list` | List recent emails | List unread emails |
+| `email_draft` | Create draft for review | Save to Pending_Approval/ |
+| `email_send` | Send email immediately | Only for pre-approved emails |
+
+### email_list
+
+List recent emails from Gmail inbox.
+
+**Parameters:**
+- `max_results` (optional): Max emails to return (default: 10)
+- `query` (optional): Gmail search query (default: is:unread)
+
+**Example:**
+```
+Call tool: email_list(max_results=5, query="is:unread")
+```
+
+### email_draft (RECOMMENDED)
+
+Create an email draft in `Pending_Approval/` for human review.
+
+**ALWAYS use this for outgoing emails - never send directly.**
+
+**Parameters:**
+- `to` (required): Recipient email
+- `subject` (required): Email subject
+- `body` (required): Email body text
+- `cc` (optional): CC recipients
+- `reply_to` (optional): Message ID to reply to
+
+**Example:**
+```
+Call tool: email_draft(
+  to="client@example.com",
+  subject="Re: Project Update",
+  body="Thank you for your email..."
+)
+```
+
+**Creates file in:**
+```
+AI_Employee_Vault/Pending_Approval/
+└── EMAIL_REPLY_20260408_103000_Project_Update.md
+```
+
+### email_send
+
+Send an email immediately via Gmail API.
+
+**⚠️ WARNING: Only use for pre-approved emails. For normal workflow, use email_draft.**
+
+**Parameters:**
+- `to` (required): Recipient email
+- `subject` (required): Email subject
+- `body` (required): Email body text
+- `cc` (optional): CC recipients
+
+**Example:**
+```
+Call tool: email_send(
+  to="client@example.com",
+  subject="Invoice #1234",
+  body="Please find attached..."
+)
+```
+
+## Workflow: Email Reply
+
+```
+1. Email arrives in Needs_Action/
+   Gmail Watcher detects new email
+         ↓
+2. Qwen reads email
+   qwen "Process Needs_Action folder"
+         ↓
+3. Qwen drafts reply via MCP
+   email_draft(to, subject, body)
+         ↓
+4. Draft saved to Pending_Approval/
+   qwen reviews content
+         ↓
+5. Human moves draft to Approved/
+   (or Rejected/ to discard)
+         ↓
+6. Email sent via email_send or send_email.py
+   Logged to Briefings/
+   Moved to Done/
 ```
 
 ## Configuration
 
+### Credentials
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `credential.json` | `secrets/credential.json` | Google OAuth credentials |
+| `gmail_token.json` | `data/gmail_token.json` | OAuth token (auto-generated) |
+
 ### Environment Variables (.env)
 
 ```bash
-# Gmail API credentials
-GMAIL_CREDENTIALS_PATH=./credentials.json
-GMAIL_TOKEN_PATH=./token.json
+GMAIL_CREDENTIALS_PATH=./secrets/credential.json
+GMAIL_TOKEN_PATH=./data/gmail_token.json
 VAULT_PATH=./AI_Employee_Vault
-
-# Default sender (optional, auto-detected from Gmail)
-DEFAULT_FROM=your.email@example.com
-```
-
-## Usage
-
-### Draft an Email (Creates in Pending_Approval/)
-
-```bash
-qwen "Draft an email to client@example.com about the invoice status"
-```
-
-This creates a file in `Pending_Approval/` like:
-
-```markdown
----
-type: email_draft
-to: client@example.com
-subject: Invoice Status Update
-created: 2026-03-30T10:30:00Z
-status: pending_approval
----
-
-# Email Draft
-
-## To
-client@example.com
-
-## Subject
-Invoice Status Update
-
-## Body
-
-Dear Client,
-
-I hope this email finds you well. I'm writing to update you on the invoice status...
-
-Best regards,
-[Your Name]
-
----
-## Instructions
-- Move to /Approved to send this email
-- Move to /Rejected to discard
-```
-
-### Send Approved Emails
-
-```bash
-# Send all approved emails
-cd .qwen/skills/gmail-sender
-python scripts/send_email.py ../../../AI_Employee_Vault --action send
-
-# Send a specific email
-python scripts/send_email.py ../../../AI_Employee_Vault --action send --file EMAIL_20260330_invoice.md
-```
-
-### List Drafts and Approved
-
-```bash
-# List all pending and approved emails
-python scripts/send_email.py ../../../AI_Employee_Vault --action list
-```
-
-### Reply to an Email
-
-```bash
-qwen "Reply to the email from John about the project deadline"
-```
-
-This will:
-1. Read the original email from `Needs_Action/`
-2. Create a reply draft in `Pending_Approval/`
-3. Wait for approval before sending
-
-## Workflow
-
-```
-User requests email
-       ↓
-Qwen drafts email content
-       ↓
-Save to Pending_Approval/
-       ↓
-Human reviews & edits (optional)
-       ↓
-Move to Approved/
-       ↓
-Run send_email.py --action send
-       ↓
-Email sent via Gmail API
-       ↓
-Log to Briefings/
-       ↓
-Move to Done/
-```
-
-## Email Draft Format
-
-```markdown
----
-type: email_draft
-to: recipient@example.com
-cc: cc@example.com (optional)
-bcc: bcc@example.com (optional)
-subject: Email Subject Line
-created: 2026-03-30T10:30:00Z
-in_reply_to: original_email_id (optional, for replies)
-status: pending_approval
----
-
-# Email Draft
-
-## To
-recipient@example.com
-
-## Subject
-Email Subject Line
-
-## Body
-
-Dear Recipient,
-
-Email content goes here. You can use:
-
-- Bullet points
-- **Bold text**
-- Numbered lists
-
-Best regards,
-Sender Name
-
----
-## Instructions
-- Review and edit content above
-- Move to /Approved to send
-- Move to /Rejected to discard
 ```
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `send_email.py` | Main script to send approved emails |
-| `draft_email.py` | Create email drafts programmatically |
+| `email_mcp_server.py` | MCP server (run continuously) |
+| `send_email.py` | CLI tool to send approved emails |
 
 ### send_email.py Usage
 
 ```bash
 # Send all approved emails
-python scripts/send_email.py <vault_path> --action send
+python send_email.py <vault_path> --action send
 
-# List pending and approved
-python scripts/send_email.py <vault_path> --action list
+# List pending/approved emails
+python send_email.py <vault_path> --action list
 
-# Preview an email without sending
-python scripts/send_email.py <vault_path> --action preview --file FILENAME.md
-
-# Dry run (validate but don't send)
-python scripts/send_email.py <vault_path> --action send --dry-run
-```
-
-## Integration
-
-Works with:
-- **gmail-watcher**: Read incoming emails, reply to them
-- **approval-workflow**: Human review before sending
-- **vault-processor**: Move files between folders
-
-## Email Templates
-
-### Reply Template
-
-```markdown
-## Body
-
-Dear {sender_name},
-
-Thank you for your email regarding {topic}.
-
-{response_content}
-
-Please let me know if you have any questions.
-
-Best regards,
-{your_name}
-```
-
-### New Message Template
-
-```markdown
-## Body
-
-Dear {recipient_name},
-
-I hope this email finds you well.
-
-{main_content}
-
-Looking forward to hearing from you.
-
-Best regards,
-{your_name}
-```
-
-### Follow-up Template
-
-```markdown
-## Body
-
-Dear {recipient_name},
-
-I'm following up on my previous email about {topic}.
-
-{follow_up_content}
-
-Please let me know your thoughts.
-
-Best regards,
-{your_name}
+# Preview before sending
+python send_email.py <vault_path> --action preview --file FILENAME.md
 ```
 
 ## Security Notes
 
-- `token.json` contains OAuth tokens - never commit to git
-- `credentials.json` has client secrets - keep private
+- `data/gmail_token.json` contains OAuth tokens - never commit to git
+- `secrets/credential.json` has client secrets - keep private
 - All emails require human approval before sending
 - Sent emails are logged for audit trail
 
@@ -290,54 +185,23 @@ Best regards,
 
 | Issue | Solution |
 |-------|----------|
-| Authentication failed | Re-run authentication with correct scopes |
-| Email not sending | Check Gmail API is enabled |
-| Token expired | Delete `token.json`, re-authenticate |
-| Permission denied | Ensure gmail.send scope is granted |
+| Authentication failed | Re-run `python authenticate.py` |
+| Token expired | Delete `data/gmail_token.json`, re-authenticate |
+| MCP server not responding | Check server is running |
+| Email not sending | Verify file is in `Approved/` folder |
+| Gmail API quota exceeded | Check Google Cloud Console quotas |
+
+## Integration
+
+Works with:
+- **gmail-watcher**: Detects incoming emails
+- **vault-processor**: Processes email action files
+- **approval-workflow**: Human approval workflow
 
 ## Best Practices
 
-1. **Always draft first** - Never send without approval
-2. **Review carefully** - Check recipient, subject, and content
-3. **Keep records** - All sent emails are logged
-4. **Use templates** - Consistent formatting
-5. **Respond promptly** - Aim for <24 hour response time
-
-## Example: Full Email Workflow
-
-### Step 1: Receive Email
-
-```
-Gmail Watcher detects new email
-       ↓
-Creates: Needs_Action/EMAIL_20260330_client_request.md
-```
-
-### Step 2: Draft Reply
-
-```bash
-qwen "Draft a reply to the client's invoice request"
-```
-
-Creates: `Pending_Approval/EMAIL_REPLY_20260330_client.md`
-
-### Step 3: Human Review
-
-- Review content in `Pending_Approval/`
-- Edit if needed
-- Move to `Approved/` when ready
-
-### Step 4: Send Email
-
-```bash
-cd .qwen/skills/gmail-sender
-python scripts/send_email.py ../../../AI_Employee_Vault --action send
-```
-
-### Step 5: Confirmation
-
-```
-Email sent successfully!
-Logged to: Briefings/email_sent_20260330_103000.md
-Moved to: Done/EMAIL_REPLY_20260330_client.md
-```
+1. **Always use email_draft** - Never send without approval
+2. **Review drafts** - Check content before approving
+3. **Log all actions** - Sent emails logged automatically
+4. **Rotate tokens** - Re-authenticate every 90 days
+5. **Monitor API usage** - Check Gmail API quota
