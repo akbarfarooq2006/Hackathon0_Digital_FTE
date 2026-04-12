@@ -355,7 +355,7 @@ class GmailSender:
         Returns:
             list: List of results for each email
         """
-        approved_files = list(self.approved.glob('EMAIL_*.md'))
+        approved_files = list(self.approved.glob('*.md'))
         
         if not approved_files:
             self.logger.info("No approved emails to send")

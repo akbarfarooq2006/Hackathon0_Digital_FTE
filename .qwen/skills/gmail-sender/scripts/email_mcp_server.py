@@ -497,7 +497,7 @@ def handle_request(server: EmailMCPServer, request: dict) -> dict:
                 'id': request_id,
                 'result': {
                     'content': content,
-                    'isError': not result.get('success', True)
+                    'isError': not result.get('success', False)
                 }
             }
         
