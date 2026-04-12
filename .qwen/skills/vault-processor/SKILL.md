@@ -46,14 +46,56 @@ qwen "Read all vault files and update Dashboard.md with current status"
 qwen "Generate a weekly briefing based on completed tasks in /Done"
 ```
 
-## Workflow: Process File Drop
+## Workflow: Email Processing (Correct Sequence)
 
-1. **Watcher detects** new file in `Inbox/`
-2. **Watcher creates** `.md` action file in `Needs_Action/`
-3. **Qwen reads** the action file
-4. **Qwen processes** according to Company_Handbook rules
-5. **Qwen moves** file to `Done/` when complete
-6. **Qwen updates** Dashboard.md
+**IMPORTANT:** Follow this exact sequence. Do NOT move files to Done/ until the email is actually sent.
+
+```
+Step 1: Email arrives in Needs_Action/
+   ↓
+   ⚠️ ORIGINAL STAYS HERE - do NOT move to Done/ yet
+
+Step 2: Qwen reads email and creates Plan (if complex task)
+   ↓
+   Plan saved to Plans/PLAN_*.md
+
+Step 3: Qwen creates reply draft
+   ↓
+   ⚠️ CRITICAL: Draft MUST go to Pending_Approval/ (NOT Needs_Action/)
+   File: Pending_Approval/EMAIL_REPLY_*.md
+
+Step 4: STOP and wait for human review
+   ↓
+   Human reviews draft in Pending_Approval/
+   ↓
+   To send: Human moves draft to Approved/
+   To discard: Human moves draft to Rejected/
+
+Step 5: Email script sends approved email
+   ↓
+   Only after send_email.py confirms delivery
+
+Step 6: NOW move ALL files to Done/
+   ↓
+   - Original email: Needs_Action/EMAIL_*.md → Done/
+   - Plan file: Plans/PLAN_*.md → Done/
+   - Sent reply: Approved/EMAIL_REPLY_*.md → Done/
+```
+
+### Folder Purpose (Strict Rules)
+
+| Folder | Purpose | What Goes Here |
+|--------|---------|----------------|
+| `Needs_Action/` | **Incoming only** | Items from watchers (emails, messages) |
+| `Pending_Approval/` | **Outgoing drafts** | Reply drafts, payment requests, posts |
+| `Approved/` | **Ready to execute** | Human-approved outgoing actions |
+| `Plans/` | **Task plans** | Multi-step task plans (stay until complete) |
+| `Done/` | **Completed only** | Files moved here ONLY after action is confirmed |
+
+**NEVER:**
+- ❌ Move original incoming email to Done/ before reply is sent
+- ❌ Save reply drafts to Needs_Action/
+- ❌ Move anything to Done/ until actual execution is confirmed
 
 ## Workflow: Handle Sensitive Actions
 
@@ -67,17 +109,17 @@ For sensitive actions (payments, external communications):
    amount: 500.00
    status: pending
    ---
-   
+
    ## To Approve
    Move this file to /Approved folder.
-   
+
    ## To Reject
    Move this file to /Rejected folder.
    ```
 
 2. **Wait for human** to move file to `Approved/`
 3. **Execute action** after approval
-4. **Move to Done** and log
+4. **Move to Done** ONLY after execution confirmed
 
 ## Company Handbook Rules
 
@@ -95,9 +137,11 @@ Always follow these rules from Company_Handbook.md:
 
 ### Task Processing Rules
 - Process all files in /Needs_Action folder
-- Move completed tasks to /Done folder
-- Create approval requests for sensitive actions
-- Never delete files - archive them
+- Reply drafts MUST go to /Pending_Approval/ (NOT /Needs_Action/)
+- NEVER move files to /Done/ until action is actually completed
+- Create approval requests in /Pending_Approval/ for sensitive actions
+- Only move to /Done/ after human approval AND execution confirmed
+- Never delete files - archive them instead
 
 ## Dashboard Update Template
 
