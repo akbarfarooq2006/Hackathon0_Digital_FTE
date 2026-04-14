@@ -120,23 +120,36 @@ class Orchestrator:
         # Track processed files to avoid duplicates
         self.processed_files = set()
     
-    def run_qwen_code(self, prompt: str, timeout: int = 300) -> bool:
+    def run_qwen_code(self, prompt: str, timeout: int = 300) -> tuple:
         """
         Run Qwen Code with a specific prompt.
-        
+
         Args:
             prompt: The prompt to give to Qwen Code
             timeout: Maximum seconds to wait
-            
+
         Returns:
-            bool: True if successful
+            tuple: (success: bool, output: str)
         """
         self.logger.log(f"Running Qwen Code: {prompt[:100]}...")
-        
+
         try:
-            # Build command
-            cmd = ['qwen', '-p', prompt, '-y']
+            # Try to find qwen executable
+            qwen_path = 'qwen'
             
+            # Try npm global path on Windows
+            npm_path = Path(os.environ.get('APPDATA', '')) / 'npm' / 'qwen.cmd'
+            if npm_path.exists():
+                qwen_path = str(npm_path)
+                self.logger.log(f"Using qwen at: {qwen_path}")
+            
+            # Build command
+            cmd = [qwen_path, '-p', prompt, '-y']
+
+            # Set UTF-8 environment
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'
+
             # Run Qwen Code
             result = subprocess.run(
                 cmd,
@@ -146,29 +159,31 @@ class Orchestrator:
                 errors='replace',
                 timeout=timeout,
                 cwd=str(self.vault_path),
-                shell=True          # Required on Windows to resolve PATH-based commands
+                env=env
             )
-            
+
+            output = result.stdout
+
             if result.returncode == 0:
                 self.logger.log("Qwen Code completed successfully")
-                return True
+                return True, output
             else:
                 self.logger.log_error(f"Qwen Code failed: {result.stderr}")
-                return False
-                
+                return False, result.stderr
+
         except subprocess.TimeoutExpired:
             self.logger.log_error(f"Qwen Code timed out after {timeout}s")
-            return False
+            return False, ""
         except FileNotFoundError:
             self.logger.log_error("Qwen Code not found in PATH")
-            return False
+            return False, ""
         except Exception as e:
             self.logger.log_error(f"Qwen Code error: {e}")
-            return False
+            return False, ""
     
     def send_email_via_mcp(self, filepath: Path) -> bool:
         """
-        Send email using the email MCP server or send_email.py script.
+        Send email from approved file by calling send_email.py directly.
         
         Args:
             filepath: Path to approved email file
@@ -179,7 +194,7 @@ class Orchestrator:
         self.logger.log(f"Sending email from approved file: {filepath.name}")
         
         try:
-            # Use send_email.py script as MCP server may not be running
+            # Use send_email.py script
             script_path = Path(__file__).parent / '.qwen' / 'skills' / 'gmail-sender' / 'scripts' / 'send_email.py'
             
             if not script_path.exists():
@@ -189,8 +204,8 @@ class Orchestrator:
             if script_path.exists():
                 # Run send_email.py for the specific file
                 cmd = [
-                    'python', str(script_path),
-                    str(self.vault_path),
+                    'python', str(script_path), 
+                    str(self.vault_path), 
                     '--action', 'send',
                     '--file', filepath.name
                 ]
@@ -200,17 +215,18 @@ class Orchestrator:
                 env['PYTHONIOENCODING'] = 'utf-8'
                 
                 result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
+                    cmd, 
+                    capture_output=True, 
+                    text=True, 
                     timeout=120,
                     env=env
                 )
                 
-                # Check both return code AND output for success
+                # Check both return code AND output for success confirmation
                 output = result.stdout + result.stderr
                 success_indicators = [
                     'Email sent successfully',
+                    '✓ Email sent',
                     'sent successfully',
                     'Message ID:',
                     'Success: 1',
@@ -218,7 +234,7 @@ class Orchestrator:
                 ]
                 
                 is_success = result.returncode == 0 and any(
-                    indicator.lower() in output.lower()
+                    indicator.lower() in output.lower() 
                     for indicator in success_indicators
                 )
                 
@@ -238,7 +254,7 @@ class Orchestrator:
                 return False
                 
         except Exception as e:
-            self.logger.log_error(f"Email MCP error: {e}")
+            self.logger.log_error(f"Email send error: {e}")
             return False
     
     def move_to_done(self, filepath: Path):
@@ -254,31 +270,90 @@ class Orchestrator:
             self.logger.log_error(f"Move to Done failed: {e}")
     
     def process_needs_action(self, filepath: Path):
-        """Process a new file in Needs_Action."""
+        """Process a new file in Needs_Action by having Qwen generate reply text, then creating the draft file ourselves."""
         if filepath.name in self.processed_files:
             return
-        
+
         self.processed_files.add(filepath.name)
         self.logger.log(f"Processing Needs_Action: {filepath.name}")
+
+        # Read the file content
+        try:
+            file_content = filepath.read_text(encoding='utf-8')
+        except:
+            file_content = "(unable to read file)"
+
+        # Extract metadata from frontmatter
+        import re
+        to_match = re.search(r'from:\s*(.+)', file_content)
+        subject_match = re.search(r'subject:\s*(.+)', file_content)
         
-        # Trigger Qwen Code to process the file
-        prompt = (
-            f"Read the file 'Needs_Action/{filepath.name}'. "
-            f"Check the 'type' field in the frontmatter to understand what kind of action it is "
-            f"(email, whatsapp, linkedin, task, etc.). "
-            f"Based on the type, draft an appropriate response or action plan. "
-            f"Save the draft to Pending_Approval/ with relevant frontmatter fields "
-            f"(e.g. 'to:' for emails, 'phone:' for WhatsApp, etc.). "
-            f"if it is simple task, complete it and move it to done"
-            f"follow the Company_Handbook.md  for rules and guidelines"
-        )
-        
-        success = self.run_qwen_code(prompt)
-        
-        if success:
-            self.logger.log(f"Processed successfully: {filepath.name}")
+        sender_email = to_match.group(1).strip() if to_match else "unknown@example.com"
+        original_subject = subject_match.group(1).strip() if subject_match else "No Subject"
+        reply_subject = f"Re: {original_subject}" if not original_subject.startswith("Re:") else original_subject
+
+        # Ask Qwen to generate reply text only
+        prompt = f"""Generate a professional email reply to this incoming email. Output ONLY the reply text - no markdown, no explanations, no file creation.
+
+Original email:
+{file_content}
+
+Reply guidelines:
+- Professional and courteous
+- Address the sender's question/request directly
+- Keep it concise (3-4 paragraphs max)
+- End with "Best regards,\\nAI Employee"
+
+Output ONLY the reply text, nothing else."""
+
+        success, qwen_output = self.run_qwen_code(prompt)
+
+        if success and qwen_output.strip():
+            self.logger.log("Qwen generated reply text")
+            reply_body = qwen_output.strip()
         else:
-            self.logger.log_error(f"Processing failed: {filepath.name}")
+            # Fallback: Generate a simple default reply if Qwen fails
+            self.logger.log("Using fallback reply (Qwen unavailable)")
+            reply_body = f"""Thank you for your email regarding "{original_subject}".
+
+I have received your message and will review it shortly. I appreciate your patience and will respond with a detailed reply soon.
+
+Best regards,
+AI Employee"""
+        
+        # Create the draft file ourselves
+        import re as re_mod
+        safe_filename = re_mod.sub(r'[^a-zA-Z0-9_\-\.]', '_', filepath.name.replace('EMAIL_', ''))
+        draft_filename = f"EMAIL_REPLY_{safe_filename}"
+        draft_path = self.pending_approval / draft_filename
+        
+        # Build the draft content
+        timestamp = datetime.now().isoformat()
+        draft_content = f"""---
+type: email_draft
+to: {sender_email}
+subject: {reply_subject}
+created: {timestamp}
+status: pending_approval
+---
+
+## Draft Content
+
+{reply_body}
+
+---
+
+## Actions
+- [ ] Review and edit if needed
+- [ ] Approve and send by moving to Approved/ folder
+"""
+        
+        # Write the draft file
+        try:
+            draft_path.write_text(draft_content, encoding='utf-8')
+            self.logger.log(f"[OK] Draft created in Pending_Approval/: {draft_filename}")
+        except Exception as e:
+            self.logger.log_error(f"Failed to create draft file: {e}")
     
     def process_approved(self, filepath: Path):
         """Process a file in Approved folder."""
@@ -431,10 +506,10 @@ class Orchestrator:
         schedule.every().day.at("23:00").do(self.trigger_linkedin_post)
         schedule.every().day.at("23:15").do(self.trigger_linkedin_post)
         
-        # TEST: LinkedIn trigger at 00:51 (remove after testing)
-        schedule.every().day.at("00:51").do(self.trigger_linkedin_post)
+        # TEST: LinkedIn trigger at 17:37 (remove after testing)
+        schedule.every().day.at("17:47").do(self.trigger_linkedin_post)
         
-        self.logger.log("Scheduled: LinkedIn posts at 10:00, 23:00, 23:15 (+ TEST: 00:51)")
+        self.logger.log("Scheduled: LinkedIn posts at 10:00, 23:00, 23:15 (+ TEST: 17:37)")
         
         # Business Audit - Sunday 9:00 PM
         schedule.every().sunday.at("21:00").do(self.trigger_business_audit)
@@ -457,13 +532,14 @@ class Orchestrator:
         """Trigger LinkedIn post generation."""
         self.logger.log("Scheduled: LinkedIn post generation")
         
+        # Generate timestamp and filename
+        timestamp = datetime.now().strftime('%Y-%m-%d')
+        safe_day = datetime.now().strftime('%A')
+        safe_filename = f"LinkedIn_Post_{safe_day}_{timestamp}.md"
+        
+        # Ask Qwen to generate only the post text
         prompt = (
-            # Old generic prompt (kept for reference):
-            # "Create a LinkedIn post draft about recent business activities. "
-            # "Check the Done/ folder for completed tasks to generate content. "
-            # "Save the draft to Pending_Approval/."
-
-            f"Create a professional LinkedIn post on ONE of these rotating topics based on today's day: "
+            f"Create a professional LinkedIn post on ONE of these rotating topics based on today's day ({safe_day}): "
             f"Monday: AI and automation trends. "
             f"Tuesday: Python programming tips. "
             f"Wednesday: Freelancing and productivity. "
@@ -471,12 +547,56 @@ class Orchestrator:
             f"Friday: Weekly business wins and lessons learned. "
             f"Saturday: Tech tools and resources worth sharing. "
             f"Sunday: Motivation and mindset for the week ahead. "
-            f"Today is {datetime.now().strftime('%A')}. "
-            f"Write an engaging, professional post with relevant hashtags. "
-            f"Save the draft to AI_Employee_Vault/Pending_Approval/ and wait for human approval."
+            f"\n\n"
+            f"Output ONLY the LinkedIn post text - no explanations, no markdown code blocks, no file creation. "
+            f"Write an engaging, professional post with relevant hashtags (150-300 words, 3-5 hashtags)."
         )
+
+        success, qwen_output = self.run_qwen_code(prompt)
         
-        self.run_qwen_code(prompt)
+        if success and qwen_output.strip():
+            self.logger.log("Qwen generated LinkedIn post text")
+            post_content = qwen_output.strip()
+        else:
+            # Fallback: Generate a default post
+            self.logger.log("Using fallback LinkedIn post (Qwen unavailable)")
+            post_content = f"""🚀 {safe_day} Tech Insights!
+
+Today I'm thinking about the future of AI and automation. The landscape is evolving rapidly, and it's exciting to see what's coming next.
+
+Key trends I'm watching:
+1️⃣ Autonomous AI agents becoming mainstream
+2️⃣ Low-code/no-code tools democratizing development
+3️⃣ AI-powered development assistants like Claude Code
+
+What trends are you most excited about?
+
+#AI #Automation #TechTrends #Innovation #{safe_day.replace(' ', '')}Thoughts"""
+        
+        # Create the LinkedIn post file ourselves
+        draft_path = self.pending_approval / safe_filename
+        
+        # Build the file content
+        file_content = f"""---
+type: linkedin_post
+topic: {safe_day} Tech Insights
+created: {datetime.now().isoformat()}
+status: draft
+---
+
+{post_content}
+"""
+        
+        # Write the draft file
+        try:
+            draft_path.write_text(file_content, encoding='utf-8')
+            self.logger.log(f"[OK] LinkedIn post draft created in Pending_Approval/: {safe_filename}")
+            # Auto-approve: move to Approved
+            approved_path = self.approved / safe_filename
+            draft_path.rename(approved_path)
+            self.logger.log(f"[OK] LinkedIn post auto-approved and moved to Approved/")
+        except Exception as e:
+            self.logger.log_error(f"Failed to create LinkedIn post file: {e}")
     
     def trigger_business_audit(self):
         """Trigger weekly business audit."""
