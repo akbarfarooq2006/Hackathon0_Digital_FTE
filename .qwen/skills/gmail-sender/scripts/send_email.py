@@ -12,6 +12,7 @@ Usage:
 
 import sys
 import os
+import re
 import logging
 import argparse
 import base64
@@ -194,22 +195,38 @@ class GmailSender:
                             email_data['in_reply_to'] = value
         
         # Parse body from markdown content
-        body_parts = content.split('## Body', 1)
-        if len(body_parts) > 1:
-            # Get content after ## Body, stop at next section or instructions
-            body_content = body_parts[1].strip()
-            
-            # Remove instructions section if present
-            if '---' in body_content:
-                body_content = body_content.split('---')[0].strip()
-            elif '## Instructions' in body_content:
-                body_content = body_content.split('## Instructions')[0].strip()
-            
-            email_data['body'] = body_content
-        else:
-            # Fallback: get everything after frontmatter
-            if len(parts) > 2:
-                email_data['body'] = parts[2].strip()
+        # Try multiple section names in order
+        body = None
+        
+        # Strategy 1: Look for '## Draft Content' (new format)
+        if '## Draft Content' in content:
+            body = content.split('## Draft Content', 1)[1].strip()
+        
+        # Strategy 2: Look for '## Body' (old format)
+        elif '## Body' in content:
+            body = content.split('## Body', 1)[1].strip()
+        
+        # Strategy 3: Get content after frontmatter
+        if body is None and len(parts) > 2:
+            body = parts[2].strip()
+        
+        # Clean the body:
+        # 1. Stop at '---' separator (before instructions/actions)
+        if '---' in body:
+            body = body.split('---')[0].strip()
+        
+        # 2. Remove instructions section
+        for section_marker in ['## Instructions', '## Actions', '## To', '## Subject', '## Draft Content', '## Body']:
+            if section_marker in body:
+                body = body.split(section_marker)[0].strip()
+        
+        # 3. Remove markdown formatting (bold, italic) but keep line breaks
+        body = re.sub(r'\*\*(.+?)\*\*', r'\1', body)  # Remove **bold**
+        body = re.sub(r'\*(.+?)\*', r'\1', body)       # Remove *italic*
+        body = re.sub(r'__(.+?)__', r'\1', body)       # Remove __bold__
+        body = re.sub(r'_(.+?)_', r'\1', body)         # Remove _italic_
+        
+        email_data['body'] = body
         
         # Parse To from ## To section if not in frontmatter
         if not email_data['to']:
@@ -502,9 +519,10 @@ def main():
             
             print(f"Sending: {filepath.name}")
             result = sender.send_email(filepath, args.dry_run)
-            
+
             print(f"\n=== Result ===")
-            print(f"Status: {'✅ Success' if result['success'] else '❌ Failed'}")
+            status_text = "Success" if result['success'] else "Failed"
+            print(f"Status: {status_text}")
             if result['message_id']:
                 print(f"Message ID: {result['message_id']}")
             if result['error']:
