@@ -187,14 +187,51 @@ class Orchestrator:
                 script_path = Path(__file__).parents[1] / '.qwen' / 'skills' / 'gmail-sender' / 'scripts' / 'send_email.py'
             
             if script_path.exists():
-                cmd = ['python', str(script_path), str(self.vault_path), '--action', 'send']
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                # Run send_email.py for the specific file
+                cmd = [
+                    'python', str(script_path),
+                    str(self.vault_path),
+                    '--action', 'send',
+                    '--file', filepath.name
+                ]
                 
-                if result.returncode == 0:
+                # Set UTF-8 environment to prevent encoding errors
+                env = os.environ.copy()
+                env['PYTHONIOENCODING'] = 'utf-8'
+                
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                    env=env
+                )
+                
+                # Check both return code AND output for success
+                output = result.stdout + result.stderr
+                success_indicators = [
+                    'Email sent successfully',
+                    'sent successfully',
+                    'Message ID:',
+                    'Success: 1',
+                    'success: 1'
+                ]
+                
+                is_success = result.returncode == 0 and any(
+                    indicator.lower() in output.lower()
+                    for indicator in success_indicators
+                )
+                
+                if is_success:
                     self.logger.log(f"Email sent successfully: {filepath.name}")
                     return True
                 else:
-                    self.logger.log_error(f"Email send failed: {result.stderr}")
+                    self.logger.log_error(
+                        f"Email send failed for {filepath.name}\n"
+                        f"Return code: {result.returncode}\n"
+                        f"Stdout: {result.stdout}\n"
+                        f"Stderr: {result.stderr}"
+                    )
                     return False
             else:
                 self.logger.log_error("send_email.py not found")
