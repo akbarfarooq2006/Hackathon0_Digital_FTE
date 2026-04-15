@@ -264,7 +264,7 @@ class Orchestrator:
                 self.logger.log(f"File already moved (by send script): {filepath.name}")
                 return
             dest = self.done / filepath.name
-            shutil.move(str(filepath), str(dest))
+            filepath.replace(dest)
             self.logger.log(f"Moved to Done: {filepath.name}")
         except Exception as e:
             self.logger.log_error(f"Move to Done failed: {e}")
@@ -356,7 +356,7 @@ status: pending_approval
             # Move original file to Done (Silver Tier requirement)
             try:
                 done_path = self.done / filepath.name
-                filepath.rename(done_path)
+                filepath.replace(done_path)
                 self.logger.log(f"[OK] Original file moved to Done/: {filepath.name}")
             except Exception as e:
                 self.logger.log_error(f"Failed to move original file to Done/: {e}")
@@ -515,7 +515,7 @@ status: pending_approval
         schedule.every().day.at("23:15").do(self.trigger_linkedin_post)
         
         # TEST: LinkedIn trigger at 17:37 (remove after testing)
-        schedule.every().day.at("17:47").do(self.trigger_linkedin_post)
+        schedule.every().day.at("20:06").do(self.trigger_linkedin_post)
         
         self.logger.log("Scheduled: LinkedIn posts at 10:00, 23:00, 23:15 (+ TEST: 17:37)")
         
@@ -601,7 +601,7 @@ status: draft
             self.logger.log(f"[OK] LinkedIn post draft created in Pending_Approval/: {safe_filename}")
             # Auto-approve: move to Approved
             approved_path = self.approved / safe_filename
-            draft_path.rename(approved_path)
+            draft_path.replace(approved_path)
             self.logger.log(f"[OK] LinkedIn post auto-approved and moved to Approved/")
             
             # Move original from Needs_Action to Done (Silver Tier requirement)

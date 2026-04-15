@@ -527,7 +527,7 @@ class LinkedInPoster:
                     
                     # Move to Done
                     dest = self.done / filepath.name
-                    filepath.rename(dest)
+                    filepath.replace(dest)
                     self.logger.info(f"Moved to Done: {dest.name}")
                     
                     # Log to briefings
@@ -687,7 +687,7 @@ created: {datetime.now().isoformat()}
         print(f"Failed: {results['failed']}")
 
         for file_result in results['files']:
-            status_icon = '✅' if file_result['status'] == 'success' else '❌'
+            status_icon = '[OK]' if file_result['status'] == 'success' else '[FAIL]'
             print(f"  {status_icon} {file_result['file']}")
 
     elif args.action == 'draft-and-post':
@@ -798,7 +798,7 @@ Created and posted automatically via draft-and-post command.
         
         # Step 2: Move to Approved (auto-approve)
         approved_path = poster.approved / filename
-        filepath.rename(approved_path)
+        filepath.replace(approved_path)
         print(f"Step 2: Auto-approved (moved to Approved/)")
         
         # Step 3: Post immediately
@@ -811,7 +811,7 @@ Created and posted automatically via draft-and-post command.
         print(f"Failed: {results['failed']}")
 
         for file_result in results['files']:
-            status_icon = '✅' if file_result['status'] == 'success' else '❌'
+            status_icon = '[OK]' if file_result['status'] == 'success' else '[FAIL]'
             print(f"  {status_icon} {file_result['file']}")
             if file_result.get('error'):
                 print(f"      Error: {file_result['error']}")
