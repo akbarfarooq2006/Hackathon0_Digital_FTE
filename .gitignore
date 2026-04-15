@@ -4,10 +4,12 @@
 token.json
 
 # Secrets (OAuth credentials, API keys)
-secrets/
+secrets/*
+!secrets/.gitkeep
 
 # Runtime data (generated at runtime)
-data/
+data/*
+!data/.gitkeep
 *.log
 
 # Browser sessions
@@ -19,13 +21,15 @@ __pycache__/
 *.pyc
 *.pyo
 
-AI_Employee_Vault/Needs_Action/*
-AI_Employee_Vault/Done/*
-AI_Employee_Vault/Pending_Approval/*
-AI_Employee_Vault/Approved/*
-AI_Employee_Vault/Briefings/*
-AI_Employee_Vault/Plans/*
+# Vault Folders (Contents ignored)
+AI_Employee_Vault/Needs_Action/
+AI_Employee_Vault/Done/
+AI_Employee_Vault/Pending_Approval/
+AI_Employee_Vault/Approved/
+AI_Employee_Vault/Briefings/
+AI_Employee_Vault/Plans/
 AI_Employee_Vault/Logs/
+AI_Employee_Vault/Rejected/
 
 # Runtime cache files generated in vault root
 AI_Employee_Vault/.gmail_cache.json
