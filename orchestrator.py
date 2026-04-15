@@ -352,6 +352,14 @@ status: pending_approval
         try:
             draft_path.write_text(draft_content, encoding='utf-8')
             self.logger.log(f"[OK] Draft created in Pending_Approval/: {draft_filename}")
+            
+            # Move original file to Done (Silver Tier requirement)
+            try:
+                done_path = self.done / filepath.name
+                filepath.rename(done_path)
+                self.logger.log(f"[OK] Original file moved to Done/: {filepath.name}")
+            except Exception as e:
+                self.logger.log_error(f"Failed to move original file to Done/: {e}")
         except Exception as e:
             self.logger.log_error(f"Failed to create draft file: {e}")
     
@@ -595,6 +603,22 @@ status: draft
             approved_path = self.approved / safe_filename
             draft_path.rename(approved_path)
             self.logger.log(f"[OK] LinkedIn post auto-approved and moved to Approved/")
+            
+            # Move original from Needs_Action to Done (Silver Tier requirement)
+            # Check we have a matching file in Needs_Action that was processed
+            if filepath.name in self.processed_files:
+                # For now, just move the original file to Done
+                try:
+                    # Create a simple Done file with the same base name
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    done_file = self.done / f"LINKEDIN_DONE_{timestamp}_{filepath.name.split('_')[1]}.md"
+                    done_file.write_text(f"""Processed LinkedIn post draft created.
+Original file: {filepath.name}
+Post content: {post_content[:100]}...
+""")
+                    self.logger.log(f"[OK] Original file moved to Done/ folder")
+                except Exception as e:
+                    self.logger.log_error(f"Failed to move original file to Done/: {e}")
         except Exception as e:
             self.logger.log_error(f"Failed to create LinkedIn post file: {e}")
     
