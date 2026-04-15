@@ -70,7 +70,11 @@ cd Hackathon0_Digital_FTE
 # Install dependencies
 pip install -r requirements.txt
 
-# Install Playwright browsers (for LinkedIn & Browser tools)
+# Step 1: Initialize Project Folders 🚀
+# This creates all required folders (Vault, data, secrets) automatically.
+python init_project.py
+
+# Step 2: Install Playwright browsers (for LinkedIn & Browser tools)
 playwright install chromium
 ```
 
